@@ -29,7 +29,12 @@ router.delete('/:id', authMiddleware, async (req, res) => {
         const comment = await Comment.findById(req.params.id);
         if (!comment) return res.status(404).json({ error: 'Comment not found' });
         const post = await Post.findById(comment.post_id);
-        if (req.user.role !== 'superadmin' && (comment.author_id !== req.user.userId && post.author_id !== req.user.userId)) {
+        if (
+            comment.author_id !== req.user.userId &&
+            (post ? post.author_id !== req.user.userId : true) &&
+            req.user.role !== 'admin' &&
+            req.user.role !== 'superadmin'
+        ) {
             return res.status(403).json({ error: 'Unauthorized' });
         }
         await comment.deleteOne();
