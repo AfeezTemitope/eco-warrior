@@ -5,7 +5,6 @@ import { usePostStore } from "../store/postStore";
 import api from "../lib/api";
 import { Pencil, Trash2, UserMinus, Loader2, Plus } from "lucide-react";
 import AdminLogin from "../components/AdminLogin";
-import { supabase } from "../lib/supabaseClient.ts";
 
 interface Admin {
     id: string;
@@ -22,7 +21,7 @@ interface Comment {
 }
 
 export default function AdminPanel() {
-    const { session, user, loading: authLoading } = useAuthStore();
+    const { session, role, loading: authLoading } = useAuthStore();
     const { posts, loadPosts } = usePostStore();
     const [admins, setAdmins] = useState<Admin[]>([]);
     const [commentsMap, setCommentsMap] = useState<Record<string, Comment[]>>({});
@@ -32,9 +31,7 @@ export default function AdminPanel() {
 
     const [isCheckingAuth, setIsCheckingAuth] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [userRole, setUserRole] = useState<string>(""); // Added to store role properly
 
-    // New states for create admin form
     const [newAdminEmail, setNewAdminEmail] = useState("");
     const [newAdminPassword, setNewAdminPassword] = useState("");
     const [newAdminUsername, setNewAdminUsername] = useState("");
@@ -45,63 +42,33 @@ export default function AdminPanel() {
         const checkAdminAccess = async () => {
             if (authLoading) return;
 
-            if (!session) {
+            if (!session || !role) {
                 setIsCheckingAuth(false);
                 setIsAdmin(false);
                 return;
             }
 
-            const userId = session.user?.id;
-            if (!userId) {
-                setIsCheckingAuth(false);
+            if (["admin", "superadmin"].includes(role)) {
+                setIsAdmin(true);
+            } else {
                 setIsAdmin(false);
-                return;
+                await useAuthStore.getState().signOut();
             }
-
-            try {
-                const { data: profile, error } = await supabase
-                    .from("profiles")
-                    .select("role")
-                    .eq("id", userId)
-                    .single();
-
-                if (error) {
-                    console.error("Profile fetch error:", error);
-                    setIsAdmin(false);
-                    await supabase.auth.signOut();
-                    return;
-                }
-
-                const role = profile?.role || "";
-                setUserRole(role); // Store role here
-                if (["admin", "superadmin"].includes(role)) {
-                    setIsAdmin(true);
-                } else {
-                    console.log("User is not admin or superadmin");
-                    setIsAdmin(false);
-                    await supabase.auth.signOut();
-                }
-            } catch (err) {
-                console.error("Unexpected error in admin check:", err);
-                setIsAdmin(false);
-                await supabase.auth.signOut();
-            } finally {
-                setIsCheckingAuth(false);
-            }
+            setIsCheckingAuth(false);
         };
 
         checkAdminAccess();
-    }, [session, authLoading]);
+    }, [session, role, authLoading]);
 
     useEffect(() => {
         if (isAdmin) {
             loadPosts();
             loadAllComments();
-            if (userRole === "superadmin") {
+            if (role === "superadmin") {
                 fetchAdmins();
             }
         }
-    }, [isAdmin, userRole, loadPosts]);
+    }, [isAdmin, role, loadPosts]);
 
     const fetchAdmins = async () => {
         setLoading(true);
@@ -146,7 +113,7 @@ export default function AdminPanel() {
         try {
             await api.delete(`/posts/${postId}`);
             loadPosts();
-            loadAllComments(); // Reload comments after deletion
+            loadAllComments();
         } catch {
             setError("Failed to delete post");
         } finally {
@@ -160,7 +127,6 @@ export default function AdminPanel() {
         setError("");
         try {
             await api.delete(`/comments/${commentId}`);
-            // Update local state
             setCommentsMap((prev) => ({
                 ...prev,
                 [postId]: prev[postId].filter((c) => c._id !== commentId),
@@ -200,12 +166,15 @@ export default function AdminPanel() {
                 password: newAdminPassword,
                 username: newAdminUsername,
             });
-            fetchAdmins(); // Reload admins list
+            fetchAdmins();
             setNewAdminEmail("");
             setNewAdminPassword("");
             setNewAdminUsername("");
-        } catch (err: any) {
-            setCreateError(err.response?.data?.error || "Failed to create admin");
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error && 'response' in err
+                ? (err as any).response?.data?.error || "Failed to create admin"
+                : "Failed to create admin";
+            setCreateError(errorMsg);
         } finally {
             setCreateLoading(false);
         }
@@ -253,15 +222,16 @@ export default function AdminPanel() {
                                         </button>
                                         <button
                                             onClick={() => handleDeletePost(post.id)}
-                                            disabled={loading}
-                                            className="text-red-600 hover:text-red-800 flex items-center gap-2"
+                                            disabled={loading || (role === "admin" && post.author_id !== session?.user?.id)}
+                                            className={`text-red-600 hover:text-red-800 flex items-center gap-2 ${
+                                                role === "admin" && post.author_id !== session?.user?.id ? "opacity-50 cursor-not-allowed" : ""
+                                            }`}
                                         >
                                             {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                                             <Trash2 size={20} />
                                         </button>
                                     </div>
                                 </div>
-                                {/* Comments for this post */}
                                 <div className="ml-4">
                                     <h4 className="text-md font-semibold text-gray-800 mb-2">
                                         Comments ({commentsMap[post.id]?.length || 0})
@@ -275,8 +245,10 @@ export default function AdminPanel() {
                                                 <p className="text-gray-700">{comment.text.slice(0, 100)}...</p>
                                                 <button
                                                     onClick={() => handleDeleteComment(comment._id, post.id)}
-                                                    disabled={loading}
-                                                    className="text-red-600 hover:text-red-800 flex items-center gap-2"
+                                                    disabled={loading || (role === "admin" && comment.author_id !== session?.user?.id && post.author_id !== session?.user?.id)}
+                                                    className={`text-red-600 hover:text-red-800 flex items-center gap-2 ${
+                                                        role === "admin" && comment.author_id !== session?.user?.id && post.author_id !== session?.user?.id ? "opacity-50 cursor-not-allowed" : ""
+                                                    }`}
                                                 >
                                                     {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                                                     <Trash2 size={16} />
@@ -294,12 +266,11 @@ export default function AdminPanel() {
                 </section>
 
                 {/* Manage Admins (Superadmin only) */}
-                {userRole === "superadmin" && (
+                {role === "superadmin" && (
                     <section className="bg-white rounded-lg shadow-sm p-6">
                         <h2 className="text-2xl font-semibold text-gray-900 mb-4">
                             Manage Admins
                         </h2>
-                        {/* Create Admin Form */}
                         <div className="mb-6">
                             <h3 className="text-lg font-medium mb-2">Create New Admin</h3>
                             <form onSubmit={handleCreateAdmin} className="space-y-2">
@@ -340,7 +311,6 @@ export default function AdminPanel() {
                                 </button>
                             </form>
                         </div>
-                        {/* Admins List */}
                         <div className="space-y-4">
                             {admins.map((admin) => (
                                 <div
