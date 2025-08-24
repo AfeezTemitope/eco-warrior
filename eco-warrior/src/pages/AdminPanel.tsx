@@ -32,11 +32,23 @@ export default function AdminPanel() {
     const [isCheckingAuth, setIsCheckingAuth] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
 
+    // Post creation form states
+    const [newPostTitle, setNewPostTitle] = useState("");
+    const [newPostDescription, setNewPostDescription] = useState("");
+    const [newPostContent, setNewPostContent] = useState("");
+    const [newPostImage, setNewPostImage] = useState<File | null>(null);
+    const [createPostLoading, setCreatePostLoading] = useState(false);
+    const [createPostError, setCreatePostError] = useState("");
+
+    // Admin creation form states
     const [newAdminEmail, setNewAdminEmail] = useState("");
     const [newAdminPassword, setNewAdminPassword] = useState("");
     const [newAdminUsername, setNewAdminUsername] = useState("");
-    const [createLoading, setCreateLoading] = useState(false);
-    const [createError, setCreateError] = useState("");
+    const [createAdminLoading, setCreateAdminLoading] = useState(false);
+    const [createAdminError, setCreateAdminError] = useState("");
+
+    // State for toggling full comment text
+    const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         const checkAdminAccess = async () => {
@@ -152,14 +164,48 @@ export default function AdminPanel() {
         }
     };
 
+    const handleCreatePost = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newPostTitle || !newPostDescription || !newPostContent) {
+            setCreatePostError("Title, description, and content are required");
+            return;
+        }
+        setCreatePostLoading(true);
+        setCreatePostError("");
+        try {
+            const formData = new FormData();
+            formData.append("title", newPostTitle);
+            formData.append("description", newPostDescription);
+            formData.append("content", newPostContent);
+            if (newPostImage) {
+                formData.append("image", newPostImage);
+            }
+            await api.post("/posts", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            loadPosts();
+            setNewPostTitle("");
+            setNewPostDescription("");
+            setNewPostContent("");
+            setNewPostImage(null);
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error && 'response' in err
+                ? (err as any).response?.data?.error || "Failed to create post"
+                : "Failed to create post";
+            setCreatePostError(errorMsg);
+        } finally {
+            setCreatePostLoading(false);
+        }
+    };
+
     const handleCreateAdmin = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newAdminEmail || !newAdminPassword || !newAdminUsername) {
-            setCreateError("All fields are required");
+            setCreateAdminError("All fields are required");
             return;
         }
-        setCreateLoading(true);
-        setCreateError("");
+        setCreateAdminLoading(true);
+        setCreateAdminError("");
         try {
             await api.post("/admin/admins", {
                 email: newAdminEmail,
@@ -174,10 +220,17 @@ export default function AdminPanel() {
             const errorMsg = err instanceof Error && 'response' in err
                 ? (err as any).response?.data?.error || "Failed to create admin"
                 : "Failed to create admin";
-            setCreateError(errorMsg);
+            setCreateAdminError(errorMsg);
         } finally {
-            setCreateLoading(false);
+            setCreateAdminLoading(false);
         }
+    };
+
+    const toggleComment = (commentId: string) => {
+        setExpandedComments((prev) => ({
+            ...prev,
+            [commentId]: !prev[commentId],
+        }));
     };
 
     if (isCheckingAuth || authLoading) {
@@ -203,12 +256,65 @@ export default function AdminPanel() {
                     <h2 className="text-2xl font-semibold text-gray-900 mb-4">
                         Manage Posts and Comments
                     </h2>
+                    {/* Create Post Form */}
+                    <div className="mb-6">
+                        <h3 className="text-lg font-medium mb-2">Create New Post</h3>
+                        <form onSubmit={handleCreatePost} className="space-y-2">
+                            <input
+                                type="text"
+                                placeholder="Title"
+                                value={newPostTitle}
+                                onChange={(e) => setNewPostTitle(e.target.value)}
+                                className="w-full p-2 border rounded"
+                                required
+                            />
+                            <textarea
+                                placeholder="Description"
+                                value={newPostDescription}
+                                onChange={(e) => setNewPostDescription(e.target.value)}
+                                className="w-full p-2 border rounded"
+                                rows={3}
+                                required
+                            />
+                            <textarea
+                                placeholder="Content"
+                                value={newPostContent}
+                                onChange={(e) => setNewPostContent(e.target.value)}
+                                className="w-full p-2 border rounded"
+                                rows={5}
+                                required
+                            />
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => setNewPostImage(e.target.files?.[0] || null)}
+                                className="w-full p-2 border rounded"
+                            />
+                            {createPostError && (
+                                <div className="bg-red-50 text-red-600 p-2 rounded">{createPostError}</div>
+                            )}
+                            <button
+                                type="submit"
+                                disabled={createPostLoading}
+                                className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2"
+                            >
+                                {createPostLoading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={20} />}
+                                Create Post
+                            </button>
+                        </form>
+                    </div>
+                    {/* Posts List */}
                     <div className="space-y-6">
                         {posts.map((post) => (
                             <div key={post.id} className="border-b pb-4">
                                 <div className="flex justify-between items-center mb-2">
                                     <div>
-                                        <h3 className="text-lg font-medium">{post.title}</h3>
+                                        <h3
+                                            className="text-lg font-medium text-[#2E7D32] hover:text-green-700 cursor-pointer"
+                                            onClick={() => navigate(`/posts/${post.id}`)}
+                                        >
+                                            {post.title}
+                                        </h3>
                                         <p className="text-sm text-gray-600">
                                             {post.description.slice(0, 100)}...
                                         </p>
@@ -242,7 +348,12 @@ export default function AdminPanel() {
                                                 key={comment._id}
                                                 className="flex justify-between items-start border-t py-2 text-sm"
                                             >
-                                                <p className="text-gray-700">{comment.text.slice(0, 100)}...</p>
+                                                <p
+                                                    className="text-gray-700 cursor-pointer hover:text-gray-900"
+                                                    onClick={() => toggleComment(comment._id)}
+                                                >
+                                                    {expandedComments[comment._id] ? comment.text : comment.text.slice(0, 100) + (comment.text.length > 100 ? "..." : "")}
+                                                </p>
                                                 <button
                                                     onClick={() => handleDeleteComment(comment._id, post.id)}
                                                     disabled={loading || (role === "admin" && comment.author_id !== session?.user?.id && post.author_id !== session?.user?.id)}
@@ -298,15 +409,15 @@ export default function AdminPanel() {
                                     className="w-full p-2 border rounded"
                                     required
                                 />
-                                {createError && (
-                                    <div className="bg-red-50 text-red-600 p-2 rounded">{createError}</div>
+                                {createAdminError && (
+                                    <div className="bg-red-50 text-red-600 p-2 rounded">{createAdminError}</div>
                                 )}
                                 <button
                                     type="submit"
-                                    disabled={createLoading}
+                                    disabled={createAdminLoading}
                                     className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2"
                                 >
-                                    {createLoading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={20} />}
+                                    {createAdminLoading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={20} />}
                                     Create Admin
                                 </button>
                             </form>
