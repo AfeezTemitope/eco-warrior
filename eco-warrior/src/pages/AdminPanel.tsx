@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { usePostStore } from "../store/postStore";
 import api from "../lib/api";
-import AuthModal from "../components/AuthModal";
-import { Pencil, Trash2, UserMinus } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { Pencil, Trash2, UserMinus, Loader2 } from "lucide-react";
+import AdminLogin from "../components/AdminLogin";
+import {supabase} from "../lib/supabaseClient.ts";
 
 interface Admin {
     id: string;
@@ -17,29 +17,74 @@ export default function AdminPanel() {
     const { session, user, loading: authLoading } = useAuthStore();
     const { posts, loadPosts } = usePostStore();
     const [admins, setAdmins] = useState<Admin[]>([]);
-    const [showAuthModal, setShowAuthModal] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const navigate = useNavigate();
 
+    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+    const [isAdmin, setIsAdmin] = useState(false);
+
     useEffect(() => {
-        if (!authLoading) {
+        const checkAdminAccess = async () => {
+            if (authLoading) return;
+
+            // If no session, not logged in
             if (!session) {
-                setShowAuthModal(true); // show login form if unauthenticated
+                setIsCheckingAuth(false);
+                setIsAdmin(false);
                 return;
             }
 
-            // Redirect ordinary users to their dashboard
-            const role = user?.user_metadata?.role;
-            if (role !== "admin" && role !== "superadmin") {
-                navigate("/"); // ordinary user route
+            // Ensure user exists
+            const userId = session.user?.id;
+            if (!userId) {
+                setIsCheckingAuth(false);
+                setIsAdmin(false);
                 return;
             }
 
+            try {
+                const { data: profile, error } = await supabase
+                    .from("profiles")
+                    .select("role")
+                    .eq("id", userId)
+                    .single();
+
+                if (error) {
+                    console.error("Profile fetch error:", error);
+                    setIsAdmin(false);
+                    await supabase.auth.signOut(); // cleanup
+                    return;
+                }
+
+                const role = profile?.role;
+                if (["admin", "superadmin"].includes(role)) {
+                    setIsAdmin(true);
+                } else {
+                    console.log("User is not admin or superadmin");
+                    setIsAdmin(false);
+                    await supabase.auth.signOut(); // optional: auto sign out unauthorized
+                }
+            } catch (err) {
+                console.error("Unexpected error in admin check:", err);
+                setIsAdmin(false);
+                await supabase.auth.signOut();
+            } finally {
+                setIsCheckingAuth(false);
+            }
+        };
+
+        checkAdminAccess();
+    }, [session, authLoading]); // ← no need to include `user` if we use `session.user.id`
+    // Load data after auth check
+    useEffect(() => {
+        if (isAdmin) {
             loadPosts();
-            if (role === "superadmin") fetchAdmins();
+            if (user?.user_metadata?.role === "superadmin") {
+                fetchAdmins();
+            }
         }
-    }, [session, user, authLoading, navigate, loadPosts]);
+    }, [isAdmin, user, loadPosts]);
 
     const fetchAdmins = async () => {
         setLoading(true);
@@ -52,11 +97,6 @@ export default function AdminPanel() {
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleCloseAuthModal = () => {
-        setShowAuthModal(false);
-        if (!session) navigate("/"); // fallback if login not successful
     };
 
     const handleDeletePost = async (postId: string) => {
@@ -87,12 +127,14 @@ export default function AdminPanel() {
         }
     };
 
-    if (authLoading) return <div className="text-center py-8">Loading...</div>;
+    if (isCheckingAuth || authLoading) {
+        return <div className="text-center py-8">Checking admin access...</div>;
+    }
 
-    if (!session)
-        return <AuthModal isOpen={showAuthModal} onClose={handleCloseAuthModal} />;
+    if (!isAdmin) {
+        return <AdminLogin />;
+    }
 
-    // --- AdminPanel UI ---
     return (
         <div className="min-h-screen bg-gray-50 py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -141,7 +183,7 @@ export default function AdminPanel() {
                     </div>
                 </section>
 
-                {/* Manage Admins for Superadmin */}
+                {/* Manage Admins (Superadmin only) */}
                 {user?.user_metadata?.role === "superadmin" && (
                     <section className="bg-white rounded-lg shadow-sm p-6">
                         <h2 className="text-2xl font-semibold text-gray-900 mb-4">
@@ -173,9 +215,6 @@ export default function AdminPanel() {
                     </section>
                 )}
             </div>
-
-            {/* AuthModal fallback */}
-            <AuthModal isOpen={showAuthModal} onClose={handleCloseAuthModal} />
         </div>
     );
 }
