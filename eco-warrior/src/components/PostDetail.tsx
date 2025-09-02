@@ -6,6 +6,8 @@ import api from '../lib/api';
 import { FaHandPaper, FaRegHandPaper } from 'react-icons/fa';
 import AuthModal from './AuthModal';
 import type { Post, Comment, PostFromApi } from '../store/types';
+import Header from "./Header.tsx";
+import Footer from "./Footer.tsx";
 
 export default function PostDetail() {
     const { id } = useParams<{ id: string }>();
@@ -138,6 +140,7 @@ export default function PostDetail() {
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">
+            <Header />
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 <button
                     onClick={() => navigate('/')}
@@ -273,6 +276,7 @@ export default function PostDetail() {
                 </article>
             </div>
             <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} redirectPath={location.pathname} />
+        <Footer />
         </div>
     );
 }
