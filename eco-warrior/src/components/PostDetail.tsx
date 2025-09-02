@@ -6,7 +6,7 @@ import api from '../lib/api';
 import { FaHandPaper, FaRegHandPaper } from 'react-icons/fa';
 import AuthModal from './AuthModal';
 import type { Post, Comment, PostFromApi } from '../store/types';
-import Header from "./Header.tsx";
+// import Header from "./Header.tsx";
 import Footer from "./Footer.tsx";
 
 export default function PostDetail() {
@@ -140,7 +140,7 @@ export default function PostDetail() {
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">
-            <Header />
+            {/*<Header />*/}
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 <button
                     onClick={() => navigate('/')}
@@ -217,21 +217,24 @@ export default function PostDetail() {
                                 {interactions.comments.map((comment: Comment) => (
                                     <div key={comment._id} className="bg-gray-50 p-4 rounded-lg">
                                         <div className="flex items-center gap-3 mb-2">
+                                            {/* Avatar circle */}
                                             <div className="w-6 h-6 bg-[#2E7D32] rounded-full flex items-center justify-center">
-                                                <span className="text-white text-xs font-semibold">
-                                                  {(comment.username?.charAt(0).toUpperCase() || "U")}
-                                                </span>
-                                                <p className="font-medium text-sm">{comment.username || "Unknown User"}</p>
-
+                <span className="text-white text-xs font-semibold">
+                    {comment.username?.charAt(0).toUpperCase() || "U"}
+                </span>
                                             </div>
-                                            <p className="font-medium text-sm">{comment.username}</p>
-                                            <p className="text-xs text-gray-500">
-                                                {new Date(comment.created_at).toLocaleDateString()}
-                                            </p>
+                                            {/* Username & date */}
+                                            <div>
+                                                <p className="font-medium text-sm">{comment.username || "Unknown User"}</p>
+                                                <p className="text-xs text-gray-500">
+                                                    {new Date(comment.created_at).toLocaleDateString()}
+                                                </p>
+                                            </div>
                                         </div>
                                         <p className="text-gray-700">{comment.text}</p>
                                     </div>
                                 ))}
+
                             </div>
                         )}
                         <div className="mt-6">
