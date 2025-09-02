@@ -1,30 +1,41 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { usePostStore } from '../store/postStore';
 import api from '../lib/api';
-import { FaHeart, FaRegHeart } from 'react-icons/fa';
+import { FaHandPaper, FaRegHandPaper } from 'react-icons/fa';
 import AuthModal from './AuthModal';
 import type { Post, Comment, PostFromApi } from '../store/types';
 
 export default function PostDetail() {
     const { id } = useParams<{ id: string }>();
     const { session, error: authError } = useAuthStore();
-    const { getInteractions, addClap, removeClap, loadInteractions, addComment } = usePostStore();
+    const { getInteractions, addClap, removeClap, loadInteractions, addComment, refreshInteractions } = usePostStore();
     const [post, setPost] = useState<Post | null>(null);
     const [loading, setLoading] = useState(true);
+    const [interactionLoading, setInteractionLoading] = useState(true);
     const [error, setError] = useState('');
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [newComment, setNewComment] = useState('');
     const [commentLoading, setCommentLoading] = useState(false);
     const [commentError, setCommentError] = useState('');
+    const [clapError, setClapError] = useState('');
     const navigate = useNavigate();
+    const location = useLocation();
 
     useEffect(() => {
         if (authError) {
             setError(authError);
         }
     }, [authError]);
+
+    useEffect(() => {
+        // Refresh interactions when session changes or id changes
+        if (id) {
+            setInteractionLoading(true);
+            refreshInteractions(id).finally(() => setInteractionLoading(false));
+        }
+    }, [session, id, refreshInteractions]);
 
     const fetchPost = useCallback(async () => {
         if (!id) {
@@ -49,7 +60,7 @@ export default function PostDetail() {
                 image_url: data.image_url,
                 author_id: data.author_id,
                 created_at: data.created_at,
-                profiles: data.profiles ?? { username: 'Anonymous' },
+                profiles: { username: data.profiles?.username || 'eco warrior 🍀' },
             };
             setPost(normalizedPost);
             await loadInteractions(id);
@@ -74,13 +85,15 @@ export default function PostDetail() {
             return;
         }
         try {
+            setClapError('');
             if (interactions.userClapped) {
                 await removeClap(id!);
             } else {
                 await addClap(id!);
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to update clap');
+            setClapError(err instanceof Error ? err.message : 'Failed to update clap');
+            setTimeout(() => setClapError(''), 3000);
         }
     };
 
@@ -113,6 +126,7 @@ export default function PostDetail() {
             setNewComment('');
         } catch (err) {
             setCommentError(err instanceof Error ? err.message : 'Failed to post comment. Please try again.');
+            setTimeout(() => setCommentError(''), 3000);
         } finally {
             setCommentLoading(false);
         }
@@ -150,13 +164,11 @@ export default function PostDetail() {
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-8 h-8 bg-[#2E7D32] rounded-full flex items-center justify-center">
                             <span className="text-white font-semibold text-xs">
-                                {post.profiles?.username?.charAt(0).toUpperCase() || 'U'}
+                                {post.profiles.username.charAt(0).toUpperCase()}
                             </span>
                         </div>
                         <div>
-                            <p className="font-medium text-gray-900 text-sm">
-                                {post.profiles?.username || 'Anonymous'}
-                            </p>
+                            <p className="font-medium text-gray-900 text-sm">{post.profiles.username}</p>
                             <p className="text-xs text-gray-500">
                                 {new Date(post.created_at).toLocaleDateString()}
                             </p>
@@ -170,21 +182,28 @@ export default function PostDetail() {
                     <div className="flex items-center gap-4 border-t pt-4">
                         <button
                             onClick={handleClap}
+                            disabled={interactionLoading || commentLoading}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105 ${
                                 interactions.userClapped
-                                    ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                                    ? 'bg-green-50 text-green-600 hover:bg-green-100'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                            disabled={commentLoading}
+                            } ${interactionLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                             aria-label={interactions.userClapped ? 'Remove clap' : 'Add clap'}
                         >
-                            {interactions.userClapped ? (
-                                <FaHeart className="text-red-500 text-sm" />
+                            {interactionLoading ? (
+                                <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                            ) : interactions.userClapped ? (
+                                <FaHandPaper className="text-green-500 text-sm" />
                             ) : (
-                                <FaRegHeart className="text-sm" />
+                                <FaRegHandPaper className="text-sm" />
                             )}
                             <span className="font-medium text-sm">{interactions.claps}</span>
                         </button>
+                        {clapError && (
+                            <p className="text-red-500 text-sm" role="alert">
+                                {clapError}
+                            </p>
+                        )}
                     </div>
                     <div className="mt-6">
                         <h2 className="text-2xl font-semibold text-gray-900 mb-4">Comments</h2>
@@ -197,14 +216,12 @@ export default function PostDetail() {
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="w-6 h-6 bg-[#2E7D32] rounded-full flex items-center justify-center">
                                                 <span className="text-white text-xs font-semibold">
-                                                    {comment.username?.charAt(0).toUpperCase() ||
-                                                        comment.author_id?.charAt(0).toUpperCase() ||
-                                                        'U'}
+                                                  {(comment.username?.charAt(0).toUpperCase() || "U")}
                                                 </span>
+                                                <p className="font-medium text-sm">{comment.username || "Unknown User"}</p>
+
                                             </div>
-                                            <p className="font-medium text-sm">
-                                                {comment.username || 'Anonymous'}
-                                            </p>
+                                            <p className="font-medium text-sm">{comment.username}</p>
                                             <p className="text-xs text-gray-500">
                                                 {new Date(comment.created_at).toLocaleDateString()}
                                             </p>

@@ -23,12 +23,14 @@ interface BlogPostCardProps {
 function BlogPostCard({ post }: BlogPostCardProps) {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [error, setError] = useState('');
+    const [interactionLoading, setInteractionLoading] = useState(true);
     const { requireAuth, session } = useAuthStore();
     const { getInteractions, addClap, removeClap, loadInteractions } = usePostStore();
 
     useEffect(() => {
         if (post._id) {
-            loadInteractions(post._id);
+            setInteractionLoading(true);
+            loadInteractions(post._id).finally(() => setInteractionLoading(false));
         }
     }, [post._id, session, loadInteractions]);
 
@@ -103,14 +105,17 @@ function BlogPostCard({ post }: BlogPostCardProps) {
                     <div className="flex items-center gap-4">
                         <button
                             onClick={handleClap}
+                            disabled={interactionLoading}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105 ${
                                 interactions.userClapped
                                     ? 'bg-green-50 text-green-600 hover:bg-green-100'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
+                            } ${interactionLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                             aria-label={interactions.userClapped ? 'Remove clap' : 'Add clap'}
                         >
-                            {interactions.userClapped ? (
+                            {interactionLoading ? (
+                                <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                            ) : interactions.userClapped ? (
                                 <FaHandPaper className="text-green-500 text-sm" />
                             ) : (
                                 <FaRegHandPaper className="text-sm" />

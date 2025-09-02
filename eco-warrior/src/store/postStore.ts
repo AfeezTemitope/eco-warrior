@@ -94,7 +94,7 @@ export const usePostStore = create<PostStore>((set, get) => ({
         }
         try {
             const { data } = await api.post<Comment>('/comments', { post_id: postId, text: comment.text.trim() });
-            data.username = useAuthStore.getState().session?.user.user_metadata?.username || 'Anonymous';
+            data.username = useAuthStore.getState().session?.user.user_metadata?.username || 'eco warrior 🍀';
             const current = get().interactions[postId] || {
                 post_id: postId,
                 claps: 0,
@@ -132,26 +132,37 @@ export const usePostStore = create<PostStore>((set, get) => ({
             return;
         }
         try {
-            // Fetch fresh data from backend first
-            const [clapsRes, userClappedRes, commentsRes] = await Promise.all([
+            const session = useAuthStore.getState().session;
+
+            // Always fetch claps + comments
+            const [clapsRes, commentsRes] = await Promise.all([
                 api.get<{ claps: number }>(`/claps/post/${postId}`),
-                api.get<{ userClapped: boolean }>(`/claps/user-clapped/${postId}`),
                 api.get<Comment[]>(`/comments/post/${postId}`),
             ]);
 
+            // Fetch userClapped only if logged in
+            let userClapped = false;
+            if (session) {
+                const userClappedRes = await api.get<{ userClapped: boolean }>(
+                    `/claps/user-clapped/${postId}`
+                );
+                userClapped = userClappedRes.data.userClapped;
+            }
+
             // Fetch usernames for comments
-            const uniqueAuthorIds = [...new Set(commentsRes.data.map(c => c.author_id).filter(id => id))];
+            const uniqueAuthorIds = [...new Set(commentsRes.data.map(c => c.author_id).filter(Boolean))];
             if (uniqueAuthorIds.length > 0) {
                 const { data: profilesData, error: profilesError } = await supabase
                     .from('profiles')
                     .select('id, username')
                     .in('id', uniqueAuthorIds);
+
                 if (profilesError) {
                     console.error('Failed to fetch profiles for comments:', profilesError);
                 } else if (profilesData) {
                     const profileMap = new Map(profilesData.map(p => [p.id, p.username]));
                     commentsRes.data.forEach(c => {
-                        c.username = profileMap.get(c.author_id) || 'Anonymous';
+                        c.username = profileMap.get(c.author_id) || 'eco warrior 🍀';
                     });
                 }
             }
@@ -159,14 +170,14 @@ export const usePostStore = create<PostStore>((set, get) => ({
             const interaction: Interaction = {
                 post_id: postId,
                 claps: clapsRes.data.claps,
-                userClapped: userClappedRes.data.userClapped,
+                userClapped,
                 comments: commentsRes.data,
             };
 
             set({ interactions: { ...get().interactions, [postId]: interaction } });
             await db.interactions.put(interaction);
 
-            // Update cache with fresh data
+            // Update cache if claps/userClapped changed
             const cached = await db.interactions.get(postId);
             if (cached && (cached.claps !== interaction.claps || cached.userClapped !== interaction.userClapped)) {
                 await db.interactions.put(interaction);
@@ -218,7 +229,7 @@ export const usePostStore = create<PostStore>((set, get) => ({
                     image_url: p.image_url,
                     author_id: p.author_id,
                     created_at: p.created_at,
-                    profiles: p.profiles ?? { username: 'Anonymous' },
+                    profiles: { username: p.profiles?.username || 'eco warrior 🍀' },
                 }));
 
             if (normalizedPosts.length === 0) {
@@ -266,7 +277,7 @@ export const usePostStore = create<PostStore>((set, get) => ({
                     image_url: p.image_url,
                     author_id: p.author_id,
                     created_at: p.created_at,
-                    profiles: p.profiles ?? { username: 'Anonymous' },
+                    profiles: { username: p.profiles?.username || 'eco warrior 🍀' },
                 }));
 
             if (normalizedPosts.length === 0) {

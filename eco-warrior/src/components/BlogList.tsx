@@ -41,7 +41,7 @@ export default function BlogList() {
                             created_at: post.created_at,
                             author: {
                                 id: post.author_id,
-                                username: post.profiles?.username || 'Anonymous',
+                                username: post.profiles.username,
                             },
                         }}
                     />

@@ -1,5 +1,5 @@
 import express from 'express';
-import  { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import authMiddleware from '../middleware/auth.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
@@ -7,12 +7,16 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 const router = express.Router();
 
 const superadminMiddleware = (req, res, next) => {
-    if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Superadmin only' });
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Superadmin only' });
+    }
     next();
 };
 
+// Only superadmin can access these routes
 router.use(authMiddleware, superadminMiddleware);
 
+// Get all admins except the current superadmin
 router.get('/admins', async (req, res) => {
     try {
         const { data, error } = await supabase
@@ -21,40 +25,55 @@ router.get('/admins', async (req, res) => {
             .in('role', ['admin', 'superadmin']);
 
         if (error) {
-            console.error('Supabase error:', error); // Log full error
+            console.error('Supabase error:', error);
             return res.status(500).json({ error: error.message || 'Database query failed' });
         }
 
-        res.json(data);
+        // Exclude current superadmin from list
+        const filtered = data.filter(a => a.id !== req.user.userId);
+        res.json(filtered);
     } catch (err) {
-        console.error('Unexpected non-Supabase error:', err); // This catches bugs in code
+        console.error('Unexpected error:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
+// Create new admin (superadmin only)
 router.post('/admins', async (req, res) => {
     const { email, password, username } = req.body;
     try {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        await supabase
-            .from('profiles')
-            .insert({ id: data.user.id, username, role: 'admin' });
+
+        await supabase.from('profiles').insert({
+            id: data.user.id,
+            username,
+            role: 'admin',
+        });
+
         res.status(201).json({ id: data.user.id, username, role: 'admin' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
+// Delete admin (superadmin cannot delete themselves or another superadmin)
 router.delete('/admins/:id', async (req, res) => {
     try {
-        if (req.params.id === req.user.userId) return res.status(403).json({ error: 'Cannot delete self' });
+        if (req.params.id === req.user.userId) {
+            return res.status(403).json({ error: 'Cannot delete self' });
+        }
+
         const { data } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', req.params.id)
             .single();
-        if (!data || data.role === 'superadmin') return res.status(403).json({ error: 'Cannot delete superadmin' });
+
+        if (!data || data.role === 'superadmin') {
+            return res.status(403).json({ error: 'Cannot delete superadmin' });
+        }
+
         await supabase.from('profiles').delete().eq('id', req.params.id);
         res.json({ message: 'Admin deleted' });
     } catch (err) {
