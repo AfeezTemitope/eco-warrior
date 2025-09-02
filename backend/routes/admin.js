@@ -19,10 +19,16 @@ router.get('/admins', async (req, res) => {
             .from('profiles')
             .select('id, username, role')
             .in('role', ['admin', 'superadmin']);
-        if (error) throw error;
+
+        if (error) {
+            console.error('Supabase error:', error); // Log full error
+            return res.status(500).json({ error: error.message || 'Database query failed' });
+        }
+
         res.json(data);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('Unexpected non-Supabase error:', err); // This catches bugs in code
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type {Post, Interaction} from '../store/types.ts';
+import type { Post, Interaction } from '../store/types';
 
 class EcoWarriorDB extends Dexie {
     posts!: Table<Post, string>;
@@ -8,7 +8,7 @@ class EcoWarriorDB extends Dexie {
     constructor() {
         super('EcoWarriorDB');
         this.version(1).stores({
-            posts: '_id, title, description, content, image_url, author_id, created_at',
+            posts: '_id',
             interactions: 'post_id'
         });
     }

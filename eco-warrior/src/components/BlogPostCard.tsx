@@ -1,12 +1,11 @@
-import { Link } from "react-router-dom";
-import { FaHeart, FaRegHeart, FaComment } from "react-icons/fa";
-import { useState } from "react";
-import { useAuthStore } from "../store/authStore";
-import { usePostStore } from "../store/postStore";
-import AuthModal from "./AuthModal";
+import { FaHandPaper, FaRegHandPaper, FaComment } from 'react-icons/fa';
+import { useState, useEffect } from 'react';
+import { useAuthStore } from '../store/authStore';
+import { usePostStore } from '../store/postStore';
+import AuthModal from './AuthModal';
 
 export interface BlogPost {
-    id: string;
+    _id: string;
     title: string;
     description: string;
     image_url?: string;
@@ -23,10 +22,17 @@ interface BlogPostCardProps {
 
 function BlogPostCard({ post }: BlogPostCardProps) {
     const [showAuthModal, setShowAuthModal] = useState(false);
-    const { requireAuth } = useAuthStore();
-    const { getInteractions, addClap, removeClap } = usePostStore();
+    const [error, setError] = useState('');
+    const { requireAuth, session } = useAuthStore();
+    const { getInteractions, addClap, removeClap, loadInteractions } = usePostStore();
 
-    const interactions = getInteractions(post.id);
+    useEffect(() => {
+        if (post._id) {
+            loadInteractions(post._id);
+        }
+    }, [post._id, session, loadInteractions]);
+
+    const interactions = getInteractions(post._id);
 
     const handleClap = async (e: React.MouseEvent) => {
         e.preventDefault();
@@ -37,10 +43,16 @@ function BlogPostCard({ post }: BlogPostCardProps) {
             return;
         }
 
-        if (interactions.userClapped) {
-            await removeClap(post.id);
-        } else {
-            await addClap(post.id);
+        setError('');
+        try {
+            if (interactions.userClapped) {
+                await removeClap(post._id);
+            } else {
+                await addClap(post._id);
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to update clap');
+            setTimeout(() => setError(''), 3000);
         }
     };
 
@@ -51,7 +63,7 @@ function BlogPostCard({ post }: BlogPostCardProps) {
     return (
         <>
             <article className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group">
-                <Link to={`/posts/${post.id}`} className="block">
+                <a href={`/posts/${post._id}`} className="block">
                     {post.image_url && (
                         <div className="aspect-video overflow-hidden">
                             <img
@@ -69,9 +81,9 @@ function BlogPostCard({ post }: BlogPostCardProps) {
                         <p className="text-gray-600 mb-4 line-clamp-3 leading-relaxed">{post.description}</p>
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-8 h-8 bg-[#2E7D32] rounded-full flex items-center justify-center">
-                <span className="text-white font-semibold text-xs">
-                  {post.author.username.charAt(0).toUpperCase()}
-                </span>
+                                <span className="text-white font-semibold text-xs">
+                                    {post.author.username.charAt(0).toUpperCase()}
+                                </span>
                             </div>
                             <div>
                                 <p className="font-medium text-gray-900 text-sm">{post.author.username}</p>
@@ -81,44 +93,51 @@ function BlogPostCard({ post }: BlogPostCardProps) {
                             </div>
                         </div>
                     </div>
-                </Link>
+                </a>
+                {error && (
+                    <div className="px-6 pb-4 text-red-500 text-sm" role="alert">
+                        {error}
+                    </div>
+                )}
                 <div className="px-6 pb-4 flex items-center justify-between border-t border-gray-100 pt-4">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={handleClap}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105 ${
                                 interactions.userClapped
-                                    ? "bg-red-50 text-red-600 hover:bg-red-100"
-                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                    ? 'bg-green-50 text-green-600 hover:bg-green-100'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
+                            aria-label={interactions.userClapped ? 'Remove clap' : 'Add clap'}
                         >
                             {interactions.userClapped ? (
-                                <FaHeart className="text-red-500 text-sm" />
+                                <FaHandPaper className="text-green-500 text-sm" />
                             ) : (
-                                <FaRegHeart className="text-sm" />
+                                <FaRegHandPaper className="text-sm" />
                             )}
                             <span className="font-medium text-sm">{interactions.claps}</span>
                         </button>
-                        <Link
-                            to={`/posts/${post.id}`}
+                        <a
+                            href={`/posts/${post._id}`}
                             onClick={handleCommentClick}
                             className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all duration-200 hover:scale-105"
+                            aria-label={`View ${interactions.comments.length} comments`}
                         >
                             <FaComment className="text-sm" />
                             <span className="font-medium text-sm">{interactions.comments.length}</span>
-                        </Link>
+                        </a>
                     </div>
-                    <Link
-                        to={`/posts/${post.id}`}
+                    <a
+                        href={`/posts/${post._id}`}
                         className="text-[#2E7D32] hover:text-green-700 text-sm font-medium transition-colors"
+                        aria-label="Read more"
                     >
                         Read More
-                    </Link>
+                    </a>
                 </div>
             </article>
-            <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+            <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} redirectPath={`/posts/${post._id}`} />
         </>
     );
 }
-
 export default BlogPostCard;

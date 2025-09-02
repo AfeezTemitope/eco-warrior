@@ -68,4 +68,34 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 });
 
+// PUT update post
+function isValidUUID(id) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(id);
+}
+router.get('/:id', async (req, res) => {
+    const { id } = req.params;
+
+    // ✅ Validate ID format
+    if (!id || id === 'undefined' || !isValidUUID(id)) {
+        return res.status(400).json({ error: 'Invalid post ID' });
+    }
+
+    try {
+        const { data } = await supabase
+            .from('posts')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (!data) {
+            return res.status(404).json({ error: 'Post not found' });
+        }
+
+        res.json(data);
+    } catch (err) {
+        console.error('Server error:', err);
+        res.status(500).json({ error: 'Failed to load post' });
+    }
+});
 export default router;
