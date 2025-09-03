@@ -247,7 +247,7 @@ export default function About() {
 
                         {/* WhatsApp Button */}
                         <motion.a
-                            href="https://wa.me/+2348131125216"
+                            href="https://chat.whatsapp.com/F0KT6CLNxhWELrLzL5G7nF?mode=ac_t"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-3 bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg"

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { FaWhatsapp, FaTwitter, FaInstagram, FaLinkedin, FaHeart } from "react-icons/fa";
+import {FaWhatsapp, FaInstagram, FaHeart, FaMailBulk} from "react-icons/fa";
 import { motion, easeOut } from "framer-motion";
 
 export default function Footer() {
@@ -40,10 +40,10 @@ export default function Footer() {
                         </p>
                         <div className="flex gap-4 flex-wrap">
                             {[
-                                { href: "https://wa.me/+2348131125216", icon: <FaWhatsapp className="text-white" /> },
-                                { href: "#", icon: <FaTwitter className="text-white" /> },
-                                { href: "#", icon: <FaInstagram className="text-white" /> },
-                                { href: "#", icon: <FaLinkedin className="text-white" /> },
+                                { href: "https://chat.whatsapp.com/F0KT6CLNxhWELrLzL5G7nF?mode=ac_t", icon: <FaWhatsapp className="text-white" /> },
+                                { href: "ecowarriorafricaewa@gmail.com", icon: <FaMailBulk className="text-white" /> },
+                                { href: "https://www.instagram.com/ecowarriorafrica?igsh=ZjJ1eGRpYmE0aHBh", icon: <FaInstagram className="text-white" /> },
+                                // { href: "#", icon: <FaLinkedin className="text-white" /> },
                             ].map((social, idx) => (
                                 <motion.a
                                     key={idx}
@@ -76,12 +76,12 @@ export default function Footer() {
                     <motion.div variants={itemVariants}>
                         <h3 className="text-lg font-semibold mb-4 text-white">Get Involved</h3>
                         <ul className="space-y-2">
-                            <li><a href="#" className="text-gray-100 hover:text-white transition-colors">Volunteer</a></li>
-                            <li><a href="#" className="text-gray-100 hover:text-white transition-colors">Donate</a></li>
+                            <li><a href="https://chat.whatsapp.com/F0KT6CLNxhWELrLzL5G7nF?mode=ac_t" className="text-gray-100 hover:text-white transition-colors">Volunteer</a></li>
+                            <li><a href="https://chat.whatsapp.com/F0KT6CLNxhWELrLzL5G7nF?mode=ac_t" className="text-gray-100 hover:text-white transition-colors">Donate</a></li>
                             {/*<li><a href="#" className="text-gray-100 hover:text-white transition-colors">Partner with Us</a></li>*/}
                             <li>
                                 <a
-                                    href="https://wa.me/+2348131125216"
+                                    href="https://chat.whatsapp.com/F0KT6CLNxhWELrLzL5G7nF?mode=ac_t"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-gray-100 hover:text-white transition-colors"

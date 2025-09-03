@@ -51,7 +51,7 @@ const Header = () => {
                             <span>About</span>
                         </Link>
                         <a
-                            href="https://wa.me/+2348131125216"
+                            href="https://chat.whatsapp.com/F0KT6CLNxhWELrLzL5G7nF?mode=ac_t"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1 hover:text-[#2E7D32] transition-colors"
