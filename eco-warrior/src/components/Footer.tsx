@@ -41,7 +41,7 @@ export default function Footer() {
                         <div className="flex gap-4 flex-wrap">
                             {[
                                 { href: "https://chat.whatsapp.com/F0KT6CLNxhWELrLzL5G7nF?mode=ac_t", icon: <FaWhatsapp className="text-white" /> },
-                                { href: "ecowarriorafricaewa@gmail.com", icon: <FaMailBulk className="text-white" /> },
+                                { href: "mailto:ecowarriorafricaewa@gmail.com", icon: <FaMailBulk className="text-white" /> },
                                 { href: "https://www.instagram.com/ecowarriorafrica?igsh=ZjJ1eGRpYmE0aHBh", icon: <FaInstagram className="text-white" /> },
                                 // { href: "#", icon: <FaLinkedin className="text-white" /> },
                             ].map((social, idx) => (
