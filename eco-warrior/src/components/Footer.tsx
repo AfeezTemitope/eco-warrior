@@ -102,7 +102,7 @@ export default function Footer() {
                         © 2025 EcoWarrior. All rights reserved.
                     </div>
                     <div className="flex items-center gap-2 text-gray-100 text-sm justify-center md:justify-end">
-                        <span>Developed with</span>
+                        {/*<span>Developed with</span>*/}
                         <FaHeart className="text-green-300" />
                         <span>by</span>
                         <a
@@ -111,8 +111,10 @@ export default function Footer() {
                             rel="noopener noreferrer"
                             className="text-green-200 hover:text-green-400 font-semibold transition-colors"
                         >
-                            Dev.tbelzbby
+                            tbelzbby
                         </a>
+                        <FaHeart className="text-green-300" />
+
                     </div>
                 </motion.div>
             </div>
