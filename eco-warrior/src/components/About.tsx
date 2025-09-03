@@ -212,12 +212,8 @@ export default function About() {
                                 Founder || EcoWarrior Africa
                             </p>
                             <p className="text-gray-700 leading-relaxed text-base md:text-lg">
-                                As a young environmentalist, I founded EcoWarrior Africa to ignite
-                                climate consciousness and empower communities to take bold action
-                                for our planet. This initiative is more than a project—it’s a
-                                movement to inspire, educate, and equip the next generation of
-                                eco-leaders across Africa. Together, we can protect our
-                                environment and build a sustainable future.
+                                As a young environmentalist, I founded EcoWarrior Africa to ignite climate consciousness and empower communities to take bold action for our planet. This initiative is more than a project it’s a movement to inspire, educate, and equip the next generation of eco champions across Africa. Together, we can protect our environment and build a sustainable future.
+
                             </p>
                         </motion.div>
                     </div>
