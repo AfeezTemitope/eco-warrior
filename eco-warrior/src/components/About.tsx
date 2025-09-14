@@ -184,9 +184,9 @@ export default function About() {
                             viewport={{ once: true }}
                         >
                             <img
-                                src="/founder.jpg"
+                                src="/founder.webp"
                                 alt="Founder"
-                                className="w-full h-80 md:h-[28rem] object-cover rounded-2xl shadow-md"
+                                className="md:h-[28rem] object-cover rounded-2xl shadow-md"
                                 onError={(e) => {
                                     e.currentTarget.src =
                                         "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400";

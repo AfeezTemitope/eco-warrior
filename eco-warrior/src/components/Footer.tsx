@@ -106,7 +106,7 @@ export default function Footer() {
                         <FaHeart className="text-green-300" />
                         <span>by</span>
                         <a
-                            href="https://wa.me/+2349014465194"
+                            href="https://afeez-bello-portfolio.netlify.app/"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-green-200 hover:text-green-400 font-semibold transition-colors"
