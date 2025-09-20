@@ -22,7 +22,6 @@ interface PostStore {
     loadMorePosts: () => Promise<void>;
     refreshInteractions: (postId: string) => Promise<void>;
 }
-
 export const usePostStore = create<PostStore>((set, get) => ({
     interactions: {},
     posts: [],

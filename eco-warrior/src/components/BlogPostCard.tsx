@@ -4,6 +4,8 @@ import { useAuthStore } from '../store/authStore';
 import { usePostStore } from '../store/postStore';
 import AuthModal from './AuthModal';
 
+// const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 export interface BlogPost {
     _id: string;
     title: string;
@@ -145,4 +147,5 @@ function BlogPostCard({ post }: BlogPostCardProps) {
         </>
     );
 }
+
 export default BlogPostCard;
