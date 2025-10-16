@@ -2,6 +2,10 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Routes
 import posts from "./routes/posts.js";
 import comments from "./routes/comments.js";
 import claps from "./routes/claps.js";
@@ -10,14 +14,18 @@ import seedSuperAdmin from "./scripts/seedSuperAdmin.js";
 
 dotenv.config();
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("✅ MongoDB connected"))
-    .catch(err => console.error("❌ MongoDB connection error:", err));
+// MongoDB Connection
+mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+})
+.then(() => console.log("✅ MongoDB connected"))
+.catch(err => console.error("❌ MongoDB connection error:", err));
 
 // Middleware
-app.use(cors({ origin: "https://eco-warrior-plum.vercel.app" }));
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -30,5 +38,17 @@ app.use("/api/admin", admin);
 // Seed Super Admin
 await seedSuperAdmin();
 
-// Export for Vercel (serverless)
-export default app;
+// Serve React Frontend
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+app.use(express.static(path.join(__dirname, "eco-warrior", "dist")));
+
+app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "eco-warrior", "dist", "index.html"));
+});
+
+// Start Server
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+});

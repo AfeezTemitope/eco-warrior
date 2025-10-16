@@ -8,7 +8,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "../node_modules/.bin/nodemon backend/server.js",
     "start": "node server.js",
-    "build": "npm install --prefix  && npm install --prefix eco-warrior && npm run build --prefix eco-warrior"
+    "build": "npm install --prefix eco-warrior && npm run build --prefix eco-warrior"
   },
   "keywords": [],
   "author": "",
@@ -24,3 +24,4 @@
     "nodemon": "^3.1.10"
   }
 }
+
