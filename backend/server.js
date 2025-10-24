@@ -47,10 +47,15 @@ app.get("*", (req, res) => {
 
 // Start Server
 async function startServer() {
-    await seedSuperAdmin();
-    app.listen(PORT, () => {
-        console.log(`🚀 Server running on http://localhost:${PORT}`);
-    });
+  app.listen(PORT, async () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    try {
+      await seedSuperAdmin();
+    } catch (err) {
+      console.error("❌ Superadmin seeding failed:", err);
+    }
+  });
 }
+
 
 startServer();
