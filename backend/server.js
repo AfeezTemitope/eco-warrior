@@ -35,20 +35,22 @@ app.use("/api/comments", comments);
 app.use("/api/claps", claps);
 app.use("/api/admin", admin);
 
-// Seed Super Admin
-await seedSuperAdmin();
-
 // Serve React Frontend
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-app.use(express.static(path.join(__dirname, "eco-warrior", "dist")));
+app.use(express.static(path.join(__dirname, "..", "eco-warrior", "dist")));
 
 app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "eco-warrior", "dist", "index.html"));
+    res.sendFile(path.join(__dirname, "..", "eco-warrior", "dist", "index.html"));
 });
 
 // Start Server
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+async function startServer() {
+    await seedSuperAdmin();
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
+    });
+}
+
+startServer();
