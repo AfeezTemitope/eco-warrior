@@ -18,9 +18,11 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* Type definitions */
+    "types": ["vite/client"]
   },
-  "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }],
-  "types": ["vite/client"]  
+  "include": ["src", "vite-env.d.ts"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }
