@@ -1,9 +1,15 @@
+// ============================================
+// backend/routes/posts.js - COMPLETE FIX
+// ============================================
 import express from 'express';
 import Post from '../models/Post.js';
 import authMiddleware from '../middleware/auth.js';
 import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import { v2 as cloudinary } from 'cloudinary';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -16,86 +22,217 @@ const storage = new CloudinaryStorage({
     params: {
         folder: 'ecowarrior',
         format: async () => 'webp',
+        transformation: [{ width: 1200, height: 675, crop: 'limit' }]
     },
 });
 
-const upload = multer({ storage });
+const upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 }
+});
 
 const router = express.Router();
 
+// Validate MongoDB ObjectId
+function isValidObjectId(id) {
+    return /^[0-9a-fA-F]{24}$/.test(id);
+}
+
+// GET all posts with pagination
 router.get('/', async (req, res) => {
     try {
-        const posts = await Post.find().sort({ created_at: -1 });
-        res.json(posts);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
 
-router.get('/:id', async (req, res) => {
-    try {
-        const post = await Post.findById(req.params.id);
-        if (!post) return res.status(404).json({ error: 'Post not found' });
-        res.json(post);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+        const posts = await Post.find()
+            .sort({ created_at: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
 
-router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
-    const { title, description, content } = req.body;
-    try {
-        const image_url = req.file ? req.file.path : undefined;
-        const post = new Post({ title, description, content, image_url, author_id: req.user.userId });
-        await post.save();
-        res.status(201).json(post);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+        // Fetch author profiles from Supabase
+        const authorIds = [...new Set(posts.map(p => p.author_id))];
 
-router.delete('/:id', authMiddleware, async (req, res) => {
-    try {
-        const post = await Post.findById(req.params.id);
-        if (!post) return res.status(404).json({ error: 'Post not found' });
-        if (post.author_id !== req.user.userId && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-            return res.status(403).json({ error: 'Unauthorized' });
+        let profileMap = new Map();
+        if (authorIds.length > 0) {
+            const { data: profiles, error } = await supabase
+                .from('profiles')
+                .select('id, username')
+                .in('id', authorIds);
+
+            if (!error && profiles) {
+                profileMap = new Map(profiles.map(p => [p.id, p]));
+            }
         }
-        await post.deleteOne();
-        res.json({ message: 'Post deleted' });
+
+        // Attach profile data to posts
+        const postsWithProfiles = posts.map(post => ({
+            ...post,
+            _id: post._id.toString(),
+            profiles: profileMap.get(post.author_id) || { username: 'eco warrior 🤝' }
+        }));
+
+        // ALWAYS return an array
+        res.json(postsWithProfiles);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('Error fetching posts:', err);
+        res.status(500).json({ error: 'Failed to fetch posts' });
     }
 });
 
-// PUT update post
-function isValidUUID(id) {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(id);
-}
+// GET single post by ID
 router.get('/:id', async (req, res) => {
     const { id } = req.params;
 
-    // ✅ Validate ID format
-    if (!id || id === 'undefined' || !isValidUUID(id)) {
-        return res.status(400).json({ error: 'Invalid post ID' });
+    if (!isValidObjectId(id)) {
+        return res.status(400).json({ error: 'Invalid post ID format' });
     }
 
     try {
-        const { data } = await supabase
-            .from('posts')
-            .select('*')
-            .eq('id', id)
-            .single();
-
-        if (!data) {
+        const post = await Post.findById(id).lean();
+        if (!post) {
             return res.status(404).json({ error: 'Post not found' });
         }
 
-        res.json(data);
+        // Fetch author profile
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, username')
+            .eq('id', post.author_id)
+            .single();
+
+        const postWithProfile = {
+            ...post,
+            _id: post._id.toString(),
+            profiles: profile || { username: 'eco warrior 🤝' }
+        };
+
+        res.json(postWithProfile);
     } catch (err) {
-        console.error('Server error:', err);
-        res.status(500).json({ error: 'Failed to load post' });
+        console.error('Error fetching post:', err);
+        res.status(500).json({ error: 'Failed to fetch post' });
     }
 });
+
+// CREATE new post
+router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
+    const { title, description, content, image_url } = req.body;
+
+    try {
+        if (!title || !description || !content) {
+            return res.status(400).json({ error: 'Title, description, and content are required' });
+        }
+
+        if (!['admin', 'superadmin'].includes(req.user.role)) {
+            return res.status(403).json({ error: 'Only admins can create posts' });
+        }
+
+        const finalImageUrl = req.file ? req.file.path : image_url;
+
+        const post = new Post({
+            title: title.trim(),
+            description: description.trim(),
+            content: content.trim(),
+            image_url: finalImageUrl,
+            author_id: req.user.userId
+        });
+
+        await post.save();
+
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, username')
+            .eq('id', post.author_id)
+            .single();
+
+        const postWithProfile = {
+            ...post.toObject(),
+            _id: post._id.toString(),
+            profiles: profile || { username: 'eco warrior 🤝' }
+        };
+
+        res.status(201).json(postWithProfile);
+    } catch (err) {
+        console.error('Error creating post:', err);
+        res.status(500).json({ error: 'Failed to create post' });
+    }
+});
+
+// UPDATE post
+router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
+    const { id } = req.params;
+    const { title, description, content, image_url } = req.body;
+
+    if (!isValidObjectId(id)) {
+        return res.status(400).json({ error: 'Invalid post ID format' });
+    }
+
+    try {
+        const post = await Post.findById(id);
+        if (!post) {
+            return res.status(404).json({ error: 'Post not found' });
+        }
+
+        if (post.author_id !== req.user.userId && !['admin', 'superadmin'].includes(req.user.role)) {
+            return res.status(403).json({ error: 'Unauthorized to update this post' });
+        }
+
+        if (title) post.title = title.trim();
+        if (description) post.description = description.trim();
+        if (content) post.content = content.trim();
+
+        if (req.file) {
+            post.image_url = req.file.path;
+        } else if (image_url) {
+            post.image_url = image_url;
+        }
+
+        await post.save();
+
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, username')
+            .eq('id', post.author_id)
+            .single();
+
+        const postWithProfile = {
+            ...post.toObject(),
+            _id: post._id.toString(),
+            profiles: profile || { username: 'eco warrior 🤝' }
+        };
+
+        res.json(postWithProfile);
+    } catch (err) {
+        console.error('Error updating post:', err);
+        res.status(500).json({ error: 'Failed to update post' });
+    }
+});
+
+// DELETE post
+router.delete('/:id', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+        return res.status(400).json({ error: 'Invalid post ID format' });
+    }
+
+    try {
+        const post = await Post.findById(id);
+        if (!post) {
+            return res.status(404).json({ error: 'Post not found' });
+        }
+
+        if (post.author_id !== req.user.userId && !['admin', 'superadmin'].includes(req.user.role)) {
+            return res.status(403).json({ error: 'Unauthorized to delete this post' });
+        }
+
+        await post.deleteOne();
+        res.json({ message: 'Post deleted successfully' });
+    } catch (err) {
+        console.error('Error deleting post:', err);
+        res.status(500).json({ error: 'Failed to delete post' });
+    }
+});
+
 export default router;

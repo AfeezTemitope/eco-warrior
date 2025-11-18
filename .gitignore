@@ -1,6 +1,6 @@
 .idea
 node_modules
-.env
+backend/.env
 
 node_modules/
 .idea/

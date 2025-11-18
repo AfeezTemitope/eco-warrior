@@ -1,14 +1,8 @@
 import axios from 'axios';
 import { supabase } from './supabaseClient';
 
-const baseURL = import.meta.env.VITE_API_URL;
-if (!baseURL) {
-    console.error('VITE_API_URL is not defined in the environment variables');
-    throw new Error('Missing VITE_API_URL environment variable');
-}
-
 const api = axios.create({
-    baseURL,
+    baseURL: '/api',
 });
 
 api.interceptors.request.use(async (config) => {

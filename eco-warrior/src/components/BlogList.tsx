@@ -12,7 +12,6 @@ export default function BlogList() {
     }, [loadPosts]);
 
     useEffect(() => {
-        // Load interactions for all posts on mount
         posts.forEach((post) => {
             loadInteractions(post._id);
         });
@@ -24,12 +23,35 @@ export default function BlogList() {
         }
     }, [inView, hasMore, loading, loadMorePosts]);
 
-    if (loading && posts.length === 0) return <div className="text-center py-8" aria-live="polite">Loading posts...</div>;
-    if (error) return <div className="text-center py-8 text-red-500" role="alert">{error}</div>;
+    // Only show loading on initial load with no cached data
+    if (loading && posts.length === 0) {
+        return (
+            <div className="text-center py-8" aria-live="polite">
+                <div className="inline-block w-8 h-8 border-4 border-gray-300 border-t-[#2E7D32] rounded-full animate-spin"></div>
+                <p className="mt-2 text-gray-600">Loading posts...</p>
+            </div>
+        );
+    }
+
+    if (error && posts.length === 0) {
+        return (
+            <div className="text-center py-8 text-red-500" role="alert">
+                {error}
+            </div>
+        );
+    }
+
+    if (posts.length === 0) {
+        return (
+            <div className="text-center py-8 text-gray-500">
+                No posts available yet.
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 my-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8">
                 {posts.map((post) => (
                     <BlogPostCard
                         key={post._id}
@@ -49,7 +71,11 @@ export default function BlogList() {
             </div>
             {hasMore && (
                 <div ref={ref} className="text-center py-8" aria-live="polite">
-                    {loading ? 'Loading more posts...' : 'Scroll to load more'}
+                    {loading ? (
+                        <div className="inline-block w-6 h-6 border-4 border-gray-300 border-t-[#2E7D32] rounded-full animate-spin"></div>
+                    ) : (
+                        <p className="text-gray-500">Scroll to load more</p>
+                    )}
                 </div>
             )}
         </div>

@@ -1,0 +1,40 @@
+{
+  "name": "eco",
+  "version": "1.0.0",
+  "description": "🌱 Eco Warrior – A MERN-based platform for climate-conscious storytelling. Users can post, engage, and explore eco-driven content with offline support, real-time interaction, and rich media integration. Built with MongoDB, Express, React, and Node.js to empower green voices.",
+  "main": "server.js",
+  "workspaces": [
+    "eco-warrior",
+    "backend"
+  ],
+  "scripts": {
+    "install-all": "npm install && npm install --prefix backend && npm install --prefix eco-warrior",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:eco-warrior\"",
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:eco-warrior": "npm run dev --workspace eco-warrior",
+    "build": "npm run build --workspace eco-warrior",
+    "start": "npm run start --workspace backend",
+    "deploy": "npm run install-all && npm run build && npm run start",
+    "seed": "npm run seed --workspace backend"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AfeezTemitope/eco-warrior.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/AfeezTemitope/eco-warrior/issues"
+  },
+  "homepage": "https://github.com/AfeezTemitope/eco-warrior#readme"
+}

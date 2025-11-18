@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { FaUser } from "react-icons/fa";
-import { Bars3Icon, XMarkIcon, InformationCircleIcon, ChatBubbleBottomCenterTextIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { motion } from "framer-motion";
 import AuthModal from "./AuthModal";
 
@@ -11,134 +11,114 @@ const Header = () => {
 
     return (
         <>
-            {/* Desktop Header — Hidden on Mobile When Menu Open */}
-            <header className="relative z-10 w-full bg-white shadow-md border-b border-gray-200 md:z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-                    {/* Logo + Brand — Always visible on desktop */}
-                    <motion.div
-                        className="flex items-center gap-2 cursor-pointer"
-                        whileHover={{ scale: 1.05 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    >
-                        <a href="/" aria-label="Go to homepage" className="flex items-center gap-2">
-                            <img src="/logo.png" alt="EcoWarrior Logo" className="w-18 h-18 object-contain" />
-                            <span className="text-2xl font-extrabold text-[#2E7D32]">EcoWarrior</span>
-                        </a>
-                    </motion.div>
-
-                    {/* Desktop Nav Links — Always visible on desktop */}
-                    <nav className="hidden md:flex items-center gap-6 text-gray-600">
-                        <Link
-                            to="/about"
-                            className="flex items-center gap-1 hover:text-[#2E7D32] transition-colors"
-                            aria-label="Go to About page"
-                        >
-                            <InformationCircleIcon className="w-5 h-5 md:w-6 md:h-6" />
-                            <span>About</span>
+            <header className="sticky top-0 z-50 w-full bg-white shadow-sm border-b border-gray-200">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+                    <div className="flex items-center justify-between">
+                        {/* Logo */}
+                        <Link to="/" className="flex items-center gap-2 group">
+                            <motion.img
+                                src="/logo.png"
+                                alt="EcoWarrior Logo"
+                                className="w-12 h-12 object-contain"
+                                whileHover={{ rotate: 360 }}
+                                transition={{ duration: 0.6 }}
+                            />
+                            <span className="text-xl font-bold text-[#2E7D32] group-hover:text-green-700 transition-colors">
+                                EcoWarrior
+                            </span>
                         </Link>
-                        <a
-                            href="https://chat.whatsapp.com/F0KT6CLNxhWELrLzL5G7nF?mode=ac_t"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 hover:text-[#2E7D32] transition-colors"
-                            aria-label="Contact us on WhatsApp"
-                        >
-                            <ChatBubbleBottomCenterTextIcon className="w-5 h-5 md:w-6 md:h-6" />
-                            <span>Contact</span>
-                        </a>
-                        <div
-                            className="text-xl md:text-2xl hover:text-[#2E7D32] cursor-pointer"
-                            onClick={() => setShowAuthModal(true)}
-                            aria-label="Open user authentication modal"
-                        >
-                            <FaUser className="w-5 h-5 md:w-6 md:h-6" />
-                        </div>
-                    </nav>
 
-                    {/* Mobile Hamburger Button — Only visible on mobile */}
-                    <div className="md:hidden flex items-center">
+                        {/* Desktop Nav */}
+                        <nav className="hidden md:flex items-center gap-6">
+                            <Link
+                                to="/about"
+                                className="text-gray-600 hover:text-[#2E7D32] transition-colors font-medium"
+                            >
+                                About
+                            </Link>
+                            <a
+                                href="https://chat.whatsapp.com/F0KT6CLNxhWELrLzL5G7nF?mode=ac_t"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-gray-600 hover:text-[#2E7D32] transition-colors font-medium"
+                            >
+                                Contact
+                            </a>
+                            <button
+                                onClick={() => setShowAuthModal(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-[#2E7D32] text-white rounded-lg hover:bg-green-700 transition-colors"
+                            >
+                                <FaUser className="w-4 h-4" />
+                                <span className="font-medium">Sign In</span>
+                            </button>
+                        </nav>
+
+                        {/* Mobile Menu Button */}
                         <button
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className="text-gray-600 hover:text-[#2E7D32] transition-colors p-2 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-300"
-                            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+                            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
                         >
                             {isMenuOpen ? (
-                                <XMarkIcon className="w-6 h-6 text-gray-800" />
+                                <XMarkIcon className="w-6 h-6 text-gray-700" />
                             ) : (
-                                <Bars3Icon className="w-6 h-6 text-gray-800" />
+                                <Bars3Icon className="w-6 h-6 text-gray-700" />
                             )}
                         </button>
                     </div>
                 </div>
             </header>
 
-            {/* Mobile Side Menu Overlay — Covers entire screen when open */}
+            {/* Mobile Menu */}
             {isMenuOpen && (
-                <div className="fixed inset-0 z-50 overflow-hidden">
-                    {/* Backdrop Blur — Covers everything behind */}
+                <div className="fixed inset-0 z-40 md:hidden">
                     <div
-                        className="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-md"
+                        className="absolute inset-0 bg-black bg-opacity-50"
                         onClick={() => setIsMenuOpen(false)}
-                        aria-hidden="true"
                     />
-
-                    {/* Mobile Menu Panel — White, Right-Sliding, Full Height, No Header */}
-                    <div className="absolute right-0 top-0 h-full w-5/6 max-w-xs bg-white shadow-xl transform transition-transform duration-300 ease-in-out">
-                        {/* Logo Only — Top Left, No Text */}
-                        <div className="p-6 border-b border-gray-100 flex items-center">
-                            <img src="/logo.png" alt="EcoWarrior Logo" className="w-16 h-16 object-contain" />
-                        </div>
-
-                        {/* Navigation Links */}
-                        <nav className="flex flex-col space-y-4 p-6">
-                            <Link
-                                to="/about"
-                                className="flex items-center gap-4 p-3 rounded-lg text-gray-800 hover:bg-green-50 hover:text-[#2E7D32] transition-all duration-200"
-                                onClick={() => setIsMenuOpen(false)}
-                                aria-label="Go to About page"
-                            >
-                                <InformationCircleIcon className="w-6 h-6 text-[#2E7D32]" />
-                                <span className="font-medium">About</span>
-                            </Link>
-
-                            <a
-                                href="https://chat.whatsapp.com/F0KT6CLNxhWELrLzL5G7nF?mode=ac_t"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-4 p-3 rounded-lg text-gray-800 hover:bg-green-50 hover:text-[#2E7D32] transition-all duration-200"
-                                onClick={() => setIsMenuOpen(false)}
-                                aria-label="Contact us on WhatsApp"
-                            >
-                                <ChatBubbleBottomCenterTextIcon className="w-6 h-6 text-[#2E7D32]" />
-                                <span className="font-medium">Contact</span>
-                            </a>
-
-                            <div
-                                className="flex items-center gap-4 p-3 rounded-lg text-gray-800 hover:bg-green-50 hover:text-[#2E7D32] cursor-pointer transition-all duration-200"
-                                onClick={() => {
-                                    setShowAuthModal(true);
-                                    setIsMenuOpen(false);
-                                }}
-                                aria-label="Open user authentication modal"
-                            >
-                                <FaUser className="w-6 h-6 text-[#2E7D32]" />
-                                <span className="font-medium">Sign In</span>
+                    <motion.div
+                        className="absolute right-0 top-0 h-full w-64 bg-white shadow-xl"
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
+                        transition={{ type: 'tween', duration: 0.3 }}
+                    >
+                        <div className="flex flex-col h-full">
+                            <div className="p-4 border-b border-gray-200">
+                                <img src="/logo.png" alt="Logo" className="w-12 h-12" />
                             </div>
-                        </nav>
-
-                        {/* Close Button — Top Right */}
-                        <button
-                            onClick={() => setIsMenuOpen(false)}
-                            className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 p-2 rounded-full hover:bg-gray-100 transition-colors"
-                            aria-label="Close menu"
-                        >
-                            <XMarkIcon className="w-6 h-6" />
-                        </button>
-                    </div>
+                            <nav className="flex-1 p-4 space-y-2">
+                                <Link
+                                    to="/about"
+                                    className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-green-50 hover:text-[#2E7D32] transition-colors"
+                                    onClick={() => setIsMenuOpen(false)}
+                                >
+                                    About
+                                </Link>
+                                <a
+                                    href="https://chat.whatsapp.com/F0KT6CLNxhWELrLzL5G7nF?mode=ac_t"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-green-50 hover:text-[#2E7D32] transition-colors"
+                                    onClick={() => setIsMenuOpen(false)}
+                                >
+                                    Contact
+                                </a>
+                                <button
+                                    onClick={() => {
+                                        setShowAuthModal(true);
+                                        setIsMenuOpen(false);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-4 py-3 bg-[#2E7D32] text-white rounded-lg hover:bg-green-700 transition-colors"
+                                >
+                                    <FaUser className="w-4 h-4" />
+                                    <span>Sign In</span>
+                                </button>
+                            </nav>
+                        </div>
+                    </motion.div>
                 </div>
             )}
 
-            {/* Authentication Modal */}
             <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
         </>
     );
