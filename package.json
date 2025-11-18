@@ -8,7 +8,7 @@
     "backend"
   ],
   "scripts": {
-    "install-all": "npm install && npm install --prefix backend && npm install --prefix eco-warrior && npm run build --prefix eco-warrior",
+    "install-all": "npm install && npm install --prefix backend && npm install --prefix eco-warrior",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:eco-warrior\"",
     "dev:backend": "npm run dev --workspace backend",
     "dev:eco-warrior": "npm run dev --workspace eco-warrior",
