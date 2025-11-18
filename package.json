@@ -4,15 +4,15 @@
   "description": "🌱 Eco Warrior – A MERN-based platform for climate-conscious storytelling. Users can post, engage, and explore eco-driven content with offline support, real-time interaction, and rich media integration. Built with MongoDB, Express, React, and Node.js to empower green voices.",
   "main": "server.js",
   "workspaces": [
-    "eco-warrior",
+    "frontend",
     "backend"
   ],
   "scripts": {
-    "install-all": "npm install && npm install --prefix backend && npm install --prefix ./eco-warrior && npm run build --prefix ./eco-warrior",
+    "install-all": "npm install && npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:eco-warrior\"",
     "dev:backend": "npm run dev --workspace backend",
-    "dev:eco-warrior": "npm run dev --workspace ./eco-warrior",
-    "build": "npm run build --workspace ./eco-warrior",
+    "dev:eco-warrior": "npm run dev --workspace frontend",
+    "build": "npm run build --workspace frontend",
     "start": "npm run start --workspace backend",
     "deploy": "npm run install-all && npm run build && npm run start",
     "seed": "npm run seed --workspace backend"
