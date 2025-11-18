@@ -1,0 +1,55 @@
+services:
+  # Single Fullstack Service (Backend serves Frontend)
+  - type: web
+    name: eco-fullstack
+    runtime: node
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: |
+      echo "🧹 Step 1: Cleaning ROOT directory dependencies..."
+      rm -rf node_modules
+      rm -f package-lock.json
+      echo "📦 Step 2: Installing ROOT dependencies (workspaces setup)..."
+      npm install
+      echo "🧹 Step 3: Cleaning BACKEND dependencies..."
+      cd backend
+      rm -rf node_modules
+      rm -f package-lock.json
+      cd ..
+      echo "📦 Step 4: Installing BACKEND dependencies..."
+      npm install --workspace backend
+      echo "🧹 Step 5: Cleaning FRONTEND dependencies..."
+      cd frontend
+      rm -rf node_modules
+      rm -f package-lock.json
+      cd ..
+      echo "📦 Step 6: Installing FRONTEND dependencies..."
+      npm install --workspace frontend
+      echo "🏗️ Step 7: Building FRONTEND..."
+      npm run build --workspace frontend
+      echo "✅ Full build complete! All dependencies fresh from latest git push."
+    startCommand: npm run start --workspace backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: SUPERADMIN_EMAIL
+        sync: false
+      - key: SUPERADMIN_PASSWORD
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true
