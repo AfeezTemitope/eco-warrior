@@ -23,7 +23,7 @@ export default async function seedSuperAdmin() {
         // 2. Create auth user
         const email = process.env.SUPERADMIN_EMAIL;
         const password = process.env.SUPERADMIN_PASSWORD;
-        const username = "ecoWarriorBby";
+        const username = "eco Warrior 🍀";
 
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
