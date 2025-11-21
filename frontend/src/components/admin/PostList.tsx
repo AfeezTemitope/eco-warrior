@@ -8,23 +8,12 @@ interface PostListProps {
 }
 
 export default function PostList({ posts, onEdit, onDelete }: PostListProps) {
-    // Helper function to strip HTML tags and get plain text
-    const getPlainText = (html: string): string => {
-        const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = html;
-        return tempDiv.textContent || tempDiv.innerText || "";
-    };
-
-    // Helper function to truncate text while preserving some HTML
-    const getTruncatedDescription = (description: string, maxLength: number = 100): string => {
-        const plainText = getPlainText(description);
-
-        if (plainText.length <= maxLength) {
-            return description;
+    // Helper function to truncate plain text
+    const getTruncatedText = (text: string, maxLength: number = 100): string => {
+        if (text.length <= maxLength) {
+            return text;
         }
-
-        // If text is longer, truncate the plain text and return it
-        return plainText.slice(0, maxLength) + "...";
+        return text.slice(0, maxLength) + "...";
     };
 
     return (
@@ -49,8 +38,7 @@ export default function PostList({ posts, onEdit, onDelete }: PostListProps) {
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                     {posts.map((post) => {
-                        const truncatedDesc = getTruncatedDescription(post.description);
-                        const isHtml = post.description.includes("<") && post.description.includes(">");
+                        const truncatedDesc = getTruncatedText(post.description);
 
                         return (
                             <tr key={post._id} className="hover:bg-gray-50 transition-colors">
@@ -69,16 +57,9 @@ export default function PostList({ posts, onEdit, onDelete }: PostListProps) {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 hidden md:table-cell">
-                                    {isHtml ? (
-                                        <div
-                                            className="text-sm text-gray-600 max-w-xs line-clamp-2"
-                                            dangerouslySetInnerHTML={{ __html: truncatedDesc }}
-                                        />
-                                    ) : (
-                                        <div className="text-sm text-gray-600 max-w-xs line-clamp-2">
-                                            {truncatedDesc}
-                                        </div>
-                                    )}
+                                    <div className="text-sm text-gray-600 max-w-xs line-clamp-2">
+                                        {truncatedDesc}
+                                    </div>
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex gap-2 justify-end">

@@ -249,20 +249,12 @@ export default function PostDetail() {
                             </div>
                         </div>
 
-                        {/* Description (Rich Text) */}
-                        <div
-                            className="text-xl text-gray-700 mb-10 leading-relaxed
-                                prose prose-lg max-w-none
-                                prose-p:mb-4 prose-p:leading-relaxed
-                                prose-strong:font-bold prose-strong:text-gray-900
-                                prose-em:italic prose-em:text-gray-800
-                                prose-ul:list-disc prose-ul:ml-6 prose-ul:mb-4
-                                prose-ol:list-decimal prose-ol:ml-6 prose-ol:mb-4
-                                prose-li:mb-2"
-                            dangerouslySetInnerHTML={{ __html: post.description }}
-                        />
+                        {/* Description (Plain Text Summary) */}
+                        <p className="text-xl text-gray-700 mb-10 leading-relaxed italic border-l-4 border-green-200 pl-6 py-4 bg-green-50/30 rounded-r-lg">
+                            {post.description}
+                        </p>
 
-                        {/* Main Content */}
+                        {/* Main Content (Rich Text) */}
                         <div
                             className="prose prose-xl max-w-none text-gray-800 mb-12 leading-relaxed
                                 prose-headings:text-gray-900 prose-headings:font-bold prose-headings:mb-4
@@ -278,9 +270,8 @@ export default function PostDetail() {
                                 prose-code:bg-gray-100 prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm prose-code:text-gray-800
                                 prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:p-4 prose-pre:rounded-lg prose-pre:overflow-x-auto
                                 prose-img:rounded-lg prose-img:shadow-md prose-img:my-8"
-                        >
-                            {post.content}
-                        </div>
+                            dangerouslySetInnerHTML={{ __html: post.content }}
+                        />
 
                         {/* Interaction Bar */}
                         <div className="flex flex-wrap items-center gap-4 py-6 border-y border-gray-200 mb-10">

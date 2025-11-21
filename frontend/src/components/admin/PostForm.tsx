@@ -101,24 +101,24 @@ export default function PostForm({ editingPost, onSuccess, onCancel }: PostFormP
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Description * (Rich Text)
+                        Description * (Brief summary)
                     </label>
-                    <RichTextEditor
+                    <textarea
+                        placeholder="Enter a brief description or summary of the post..."
                         value={description}
-                        onChange={setDescription}
-                        placeholder="Enter post description with formatting..."
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg h-24 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow resize-none"
                     />
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Content *
+                        Content * (Rich Text)
                     </label>
-                    <textarea
-                        placeholder="Enter full post content"
+                    <RichTextEditor
                         value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-lg h-40 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow resize-none"
+                        onChange={setContent}
+                        placeholder="Enter full post content with formatting..."
                     />
                 </div>
 
