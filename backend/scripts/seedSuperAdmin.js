@@ -10,13 +10,22 @@ export default async function seedSuperAdmin() {
         // 1. Check if superadmin already exists
         const { data: existingAdmins, error: fetchError } = await supabase
             .from('profiles')
-            .select('id')
+            .select('id, username')
             .eq('role', 'superadmin');
 
         if (fetchError) throw fetchError;
 
         if (existingAdmins && existingAdmins.length > 0) {
-            console.log("✅ Superadmin already exists. Skipping seeding.");
+            // If superadmin exists, update username
+            const superAdminId = existingAdmins[0].id;
+            const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ username: "eco Warrior 🍀" })
+                .eq('id', superAdminId);
+
+            if (updateError) throw updateError;
+
+            console.log("✅ Superadmin already exists. Username updated to eco Warrior 🍀.");
             return;
         }
 
@@ -35,7 +44,7 @@ export default async function seedSuperAdmin() {
 
         if (insertError) throw insertError;
 
-        console.log("🎉 Superadmin created successfully!");
+        console.log("🎉 Superadmin created successfully with username eco Warrior 🍀!");
     } catch (err) {
         console.error("❌ Superadmin seeding failed:", err.message);
     }
