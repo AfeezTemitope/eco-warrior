@@ -1,6 +1,7 @@
 .idea
 node_modules
 backend/.env
+.vs
 
 node_modules/
 .idea/

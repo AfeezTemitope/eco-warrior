@@ -1,8 +1,8 @@
+// frontend/src/store/postStore.ts
 import { create } from 'zustand';
 import api from '../lib/api';
 import { useAuthStore } from './authStore';
 import { db } from '../lib/db';
-import { supabase } from '../lib/supabaseClient';
 import type { Post, Comment, Interaction, PostFromApi } from './types';
 import { AxiosError } from 'axios';
 
@@ -51,9 +51,9 @@ export const usePostStore = create<PostStore>((set, get) => ({
             set({ interactions: { ...get().interactions, [postId]: updated } });
             await db.interactions.put(updated);
         } catch (err: unknown) {
-            const error = err as AxiosError<{ message?: string }>;
+            const error = err as AxiosError<{ error?: string }>;
             console.error('Failed to add clap:', error);
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to add clap';
+            const errorMessage = error.response?.data?.error || error.message || 'Failed to add clap';
             throw new Error(errorMessage);
         }
     },
@@ -78,9 +78,9 @@ export const usePostStore = create<PostStore>((set, get) => ({
             set({ interactions: { ...get().interactions, [postId]: updated } });
             await db.interactions.put(updated);
         } catch (err: unknown) {
-            const error = err as AxiosError<{ message?: string }>;
+            const error = err as AxiosError<{ error?: string }>;
             console.error('Failed to remove clap:', error);
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to remove clap';
+            const errorMessage = error.response?.data?.error || error.message || 'Failed to remove clap';
             throw new Error(errorMessage);
         }
     },
@@ -93,8 +93,12 @@ export const usePostStore = create<PostStore>((set, get) => ({
             throw new Error('Comment cannot be empty');
         }
         try {
-            const { data } = await api.post<Comment>('/comments', { post_id: postId, text: comment.text.trim() });
-            data.username = useAuthStore.getState().session?.user.user_metadata?.username || 'eco warrior 🤝';
+            const { data } = await api.post<Comment>('/comments', {
+                post_id: postId,
+                text: comment.text.trim()
+            });
+
+            // Username is returned from backend
             const current = get().interactions[postId] || {
                 post_id: postId,
                 claps: 0,
@@ -108,9 +112,9 @@ export const usePostStore = create<PostStore>((set, get) => ({
             set({ interactions: { ...get().interactions, [postId]: updated } });
             await db.interactions.put(updated);
         } catch (err: unknown) {
-            const error = err as AxiosError<{ message?: string }>;
+            const error = err as AxiosError<{ error?: string }>;
             console.error('Failed to add comment:', error);
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to post comment';
+            const errorMessage = error.response?.data?.error || error.message || 'Failed to post comment';
             throw new Error(errorMessage);
         }
     },
@@ -139,7 +143,7 @@ export const usePostStore = create<PostStore>((set, get) => ({
         }
 
         try {
-            const session = useAuthStore.getState().session;
+            const token = useAuthStore.getState().token;
 
             const [clapsRes, commentsRes] = await Promise.all([
                 api.get<{ claps: number }>(`/claps/post/${postId}`),
@@ -147,28 +151,11 @@ export const usePostStore = create<PostStore>((set, get) => ({
             ]);
 
             let userClapped = false;
-            if (session) {
+            if (token) {
                 const userClappedRes = await api.get<{ userClapped: boolean }>(
                     `/claps/user-clapped/${postId}`
                 );
                 userClapped = userClappedRes.data.userClapped;
-            }
-
-            const uniqueAuthorIds = [...new Set(commentsRes.data.map(c => c.author_id).filter(Boolean))];
-            if (uniqueAuthorIds.length > 0) {
-                const { data: profilesData, error: profilesError } = await supabase
-                    .from('profiles')
-                    .select('id, username')
-                    .in('id', uniqueAuthorIds);
-
-                if (profilesError) {
-                    console.error('Failed to fetch profiles for comments:', profilesError);
-                } else if (profilesData) {
-                    const profileMap = new Map(profilesData.map(p => [p.id, p.username]));
-                    commentsRes.data.forEach(c => {
-                        c.username = profileMap.get(c.author_id) || 'eco warrior 🤝';
-                    });
-                }
             }
 
             const interaction: Interaction = {
@@ -181,10 +168,10 @@ export const usePostStore = create<PostStore>((set, get) => ({
             set({ interactions: { ...get().interactions, [postId]: interaction } });
             await db.interactions.put(interaction);
         } catch (err: unknown) {
-            const error = err as AxiosError<{ message?: string }>;
+            const error = err as AxiosError<{ error?: string }>;
             console.error('Failed to load interactions:', error);
             if (!cached && navigator.onLine) {
-                const errorMessage = error.response?.data?.message || error.message || 'Failed to load interactions';
+                const errorMessage = error.response?.data?.error || error.message || 'Failed to load interactions';
                 set({ error: errorMessage });
             }
         }
@@ -206,7 +193,6 @@ export const usePostStore = create<PostStore>((set, get) => ({
         set({ error: null });
         try {
             const { data } = await api.get('/posts');
-            console.log('Raw API response:', data);
 
             // Handle both array and single object responses
             let postsFromApi: PostFromApi[];
@@ -215,7 +201,6 @@ export const usePostStore = create<PostStore>((set, get) => ({
             } else if (data && typeof data === 'object') {
                 postsFromApi = [data];
             } else {
-                console.error('Invalid API response format:', data);
                 throw new Error('Invalid response format from server');
             }
 
@@ -248,11 +233,11 @@ export const usePostStore = create<PostStore>((set, get) => ({
                 set({ loading: false });
             }
         } catch (err: unknown) {
-            const error = err as AxiosError<{ message?: string }>;
+            const error = err as AxiosError<{ error?: string }>;
             console.error('loadPosts error:', error);
 
             if (cachedPosts.length === 0) {
-                const errorMessage = error.response?.data?.message || error.message || 'Failed to load posts';
+                const errorMessage = error.response?.data?.error || error.message || 'Failed to load posts';
                 set({ error: errorMessage, loading: false });
             } else {
                 set({ loading: false });
@@ -276,13 +261,7 @@ export const usePostStore = create<PostStore>((set, get) => ({
             }
 
             const normalizedPosts = postsFromApi
-                .filter((p: PostFromApi) => {
-                    if (!p._id || typeof p._id !== 'string') {
-                        console.warn('Invalid post:', p);
-                        return false;
-                    }
-                    return true;
-                })
+                .filter((p: PostFromApi) => p._id && typeof p._id === 'string')
                 .map((p: PostFromApi): Post => ({
                     _id: p._id,
                     title: p.title,
@@ -306,9 +285,9 @@ export const usePostStore = create<PostStore>((set, get) => ({
                 set({ hasMore: false, loading: false });
             }
         } catch (err: unknown) {
-            const error = err as AxiosError<{ message?: string }>;
+            const error = err as AxiosError<{ error?: string }>;
             console.error('loadMorePosts error:', error);
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to load more posts';
+            const errorMessage = error.response?.data?.error || error.message || 'Failed to load more posts';
             if (navigator.onLine) {
                 set({ error: errorMessage, loading: false });
             } else {
@@ -319,7 +298,7 @@ export const usePostStore = create<PostStore>((set, get) => ({
 }));
 
 useAuthStore.subscribe((state) => {
-    if (state.initialized && state.session !== undefined) {
+    if (state.initialized && state.token !== undefined) {
         Object.keys(usePostStore.getState().interactions).forEach((postId) => {
             usePostStore.getState().refreshInteractions(postId);
         });

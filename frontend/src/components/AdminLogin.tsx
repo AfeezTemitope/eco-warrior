@@ -1,13 +1,18 @@
+// frontend/src/components/AdminLogin.tsx
 import React, { useState } from "react";
 import { Loader2, Lock } from "lucide-react";
-import { supabase } from "../lib/supabaseClient";
+import { useAuthStore } from "../store/authStore";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify"; // optional but recommended
 
 const AdminLogin = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+
+    // Pull both signIn and signOut from the store
+    const { signIn, signOut } = useAuthStore();
     const navigate = useNavigate();
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -16,36 +21,24 @@ const AdminLogin = () => {
         setError("");
 
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
-            console.log("Supabase sign-in response:", { data, error });
+            const user = await signIn(email, password);
 
-            if (error) throw error;
+            if (!user) {
+                throw new Error("Invalid email or password");
+            }
 
-            const user = data.user;
-
-            const { data: profile, error: profileError } = await supabase
-                .from("profiles")
-                .select("role")
-                .eq("id", user.id)
-                .single();
-            console.log("Profile fetch response:", { profile, profileError });
-
-            if (profileError) throw profileError;
-
-            const userRole = profile.role;
-            console.log("User role:", userRole);
-
-            if (!["admin", "superadmin"].includes(userRole)) {
-                await supabase.auth.signOut();
+            // Role check
+            if (!["admin", "superadmin"].includes(user.role)) {
+                signOut(); // ← now works because we destructured it above
                 throw new Error("Access denied: Admins only");
             }
 
-            navigate("/admin-panel");
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Login failed");
+            // Success!
+            toast.success("Welcome back, Admin!"); // optional
+            navigate("/admin-panel", { replace: true });
+
+        } catch (err: any) {
+            setError(err.message || "Login failed");
             console.error("Login error:", err);
         } finally {
             setLoading(false);
@@ -62,12 +55,14 @@ const AdminLogin = () => {
                     <h1 className="text-2xl font-bold text-white">Admin Access</h1>
                     <p className="text-gray-400 mt-2">Sign in to manage the dashboard</p>
                 </div>
+
                 <form onSubmit={handleLogin} className="bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-700">
                     {error && (
-                        <div className="mb-6 p-3 bg-red-900/50 border border-red-700 text-red-200 text-sm rounded-lg">
+                        <div className="mb-6 p-4 bg-red-900/80 border-2 border-red-600 text-red-100 rounded-lg text-center font-medium">
                             {error}
                         </div>
                     )}
+
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
@@ -75,7 +70,7 @@ const AdminLogin = () => {
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
                                 placeholder="admin@example.com"
                                 required
                             />
@@ -86,16 +81,17 @@ const AdminLogin = () => {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
                                 placeholder="••••••••"
                                 required
                             />
                         </div>
                     </div>
+
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full mt-6 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-lg font-semibold hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-70 flex items-center justify-center gap-2 transform transition hover:-translate-y-0.5 active:translate-y-0"
+                        className="w-full mt-6 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-lg font-semibold hover:from-green-600 hover:to-emerald-700 disabled:opacity-70 flex items-center justify-center gap-2"
                     >
                         {loading ? (
                             <>
@@ -107,6 +103,7 @@ const AdminLogin = () => {
                         )}
                     </button>
                 </form>
+
                 <p className="text-center text-gray-500 text-sm mt-6">
                     Admins only. Unauthorized access prohibited.
                 </p>

@@ -10,9 +10,7 @@ import {
     FileText,
     MessageSquare,
     Users,
-    Pencil,
 } from "lucide-react";
-import AdminLogin from "../components/AdminLogin";
 import StatCard from "../components/admin/StatCard";
 import TabButton from "../components/admin/TabButton";
 import PostForm from "../components/admin/PostForm";
@@ -28,398 +26,194 @@ interface Admin {
     role: string;
 }
 
-interface ErrorResponse {
-    error?: string;
-}
-
-interface AxiosErrorWithData {
-    response?: {
-        data?: ErrorResponse;
-    };
-}
-
 export default function AdminPanel() {
-    const { session, role, loading: authLoading } = useAuthStore();
+    const { user, role, loading: authLoading, initialized } = useAuthStore();
     const { posts, loadPosts } = usePostStore();
+
     const [admins, setAdmins] = useState<Admin[]>([]);
     const [commentsMap, setCommentsMap] = useState<Record<string, Comment[]>>({});
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string>("");
-
-    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-    const [isAdmin, setIsAdmin] = useState(false);
-
     const [editingPost, setEditingPost] = useState<Post | null>(null);
-    const [activeTab, setActiveTab] = useState<"dashboard" | "posts" | "comments" | "admins">(
-        "dashboard"
-    );
+    const [activeTab, setActiveTab] = useState<"dashboard" | "posts" | "comments" | "admins">("dashboard");
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    // Check admin access
-    useEffect(() => {
-        const checkAdminAccess = async () => {
-            if (authLoading) return;
-            if (!session || !role) {
-                setIsCheckingAuth(false);
-                setIsAdmin(false);
-                return;
-            }
-            if (["admin", "superadmin"].includes(role)) {
-                setIsAdmin(true);
-            } else {
-                setIsAdmin(false);
-                await useAuthStore.getState().signOut();
-            }
-            setIsCheckingAuth(false);
-        };
-        checkAdminAccess();
-    }, [session, role, authLoading]);
+    // DEBUG 1: Auth state on mount & changes
+    console.log("AdminPanel Render →", {
+        initialized,
+        authLoading,
+        user: user ? { id: user.id, username: user.username, role: user.role } : null,
+        role,
+        tokenExists: !!localStorage.getItem("token"),
+    });
 
-    // Load data when admin is confirmed
+    // DEBUG 2: Main auth check
     useEffect(() => {
-        if (isAdmin) {
-            loadPosts();
-            if (posts.length > 0) {
-                loadAllComments();
-            }
-            if (role === "superadmin") {
-                fetchAdmins();
-            }
+        console.log("Auth check useEffect triggered", { initialized, authLoading, user, role });
+
+        if (!initialized || authLoading) {
+            console.log("Still initializing or loading auth...");
+            return;
         }
-    }, [isAdmin, role, posts.length, loadPosts]);
+
+        if (!user || !role) {
+            console.log("No user or role → signing out");
+            useAuthStore.getState().signOut();
+            toast.error("Session expired. Please log in again.");
+            return;
+        }
+
+        if (!["admin", "superadmin"].includes(role)) {
+            console.log("Not admin/superadmin → signing out", { role });
+            useAuthStore.getState().signOut();
+            toast.error("Access denied. Admins only.");
+            return;
+        }
+
+        console.log("Admin access granted! Loading posts...");
+        loadPosts();
+    }, [user, role, initialized, authLoading, loadPosts]);
+
+    // DEBUG 3: Load extra data
+    useEffect(() => {
+        console.log("Secondary load effect →", { postsLength: posts.length, user: !!user, role });
+
+        if (posts.length > 0 && user) {
+            console.log("Loading comments for", posts.length, "posts...");
+            loadAllComments();
+        }
+        if (role === "superadmin") {
+            console.log("Superadmin detected → fetching admin list");
+            fetchAdmins();
+        }
+    }, [posts, user, role]);
 
     const fetchAdmins = async () => {
+        console.log("Fetching admins from /admin/admins...");
         setLoading(true);
         try {
             const { data } = await api.get<Admin[]>("/admin/admins");
+            console.log("Admins fetched successfully:", data);
             setAdmins(data);
-        } catch (err) {
-            const errorMsg =
-                (err as AxiosErrorWithData).response?.data?.error || "Failed to load admins";
-            setError(errorMsg);
-            toast.error(errorMsg);
+        } catch (err: any) {
+            console.error("Failed to fetch admins:", err.response?.data || err.message);
+            toast.error(err.response?.data?.error || "Failed to load admins");
         } finally {
             setLoading(false);
         }
     };
 
     const loadAllComments = async () => {
+        console.log("Loading comments for all posts...");
         setLoading(true);
         try {
-            const allCommentsPromises = posts.map((post) =>
-                api.get<Comment[]>(`/comments/post/${post._id}`).then((res) => ({
-                    postId: post._id,
-                    comments: res.data,
-                }))
+            const results = await Promise.all(
+                posts.map(post =>
+                    api.get<Comment[]>(`/comments/post/${post._id}`).then(res => {
+                        console.log(`Comments loaded for post ${post._id}:`, res.data.length);
+                        return { postId: post._id, comments: res.data };
+                    })
+                )
             );
-            const allComments = await Promise.all(allCommentsPromises);
             const map: Record<string, Comment[]> = {};
-            allComments.forEach((item) => {
-                map[item.postId] = item.comments;
-            });
+            results.forEach(r => map[r.postId] = r.comments);
             setCommentsMap(map);
-        } catch (err) {
+            console.log("All comments loaded:", map);
+        } catch (err: any) {
+            console.error("Failed to load comments:", err.response?.data || err.message);
             toast.error("Failed to load comments");
-            console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
+    // Rest of handlers (with logs)
     const handleDeletePost = async (postId: string, postTitle: string) => {
-        if (!confirm(`Delete post "${postTitle}"?`)) return;
-        setLoading(true);
+        if (!confirm(`Delete "${postTitle}"?`)) return;
         try {
             await api.delete(`/posts/${postId}`);
+            console.log("Post deleted:", postId);
             loadPosts();
-            setCommentsMap((prev) => {
-                const newMap = { ...prev };
-                delete newMap[postId];
-                return newMap;
-            });
-            toast.info(`Post "${postTitle}" deleted`);
-        } catch {
+            toast.success("Post deleted");
+        } catch (err: any) {
+            console.error("Delete post failed:", err.response?.data);
             toast.error("Failed to delete post");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleDeleteComment = async (commentId: string, postId: string) => {
-        if (!confirm("Delete this comment?")) return;
-        setLoading(true);
-        try {
-            await api.delete(`/comments/${commentId}`);
-            setCommentsMap((prev) => ({
-                ...prev,
-                [postId]: prev[postId].filter((c) => c._id !== commentId),
-            }));
-            toast.info("Comment deleted");
-        } catch {
-            toast.error("Failed to delete comment");
-        } finally {
-            setLoading(false);
         }
     };
 
     const startEditingPost = (post: Post) => {
+        console.log("Editing post:", post.title);
         setEditingPost(post);
         setActiveTab("posts");
     };
 
-    const handlePostSuccess = () => {
-        setEditingPost(null);
-        loadPosts();
-    };
-
-    const handleCancelEdit = () => {
-        setEditingPost(null);
-    };
-
-    // Show spinner while checking auth
-    if (isCheckingAuth || authLoading) {
+    // Loading state
+    if (!initialized || authLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <Loader2 className="animate-spin text-blue-600" size={48} />
+            <div className="min-h-screen flex items-center justify-center bg-gray-900">
+                <Loader2 className="animate-spin text-green-500" size={48} />
             </div>
         );
     }
 
-    if (!isAdmin) {
-        return <AdminLogin />;
-    }
+    // if (!user || !["admin", "superadmin"].includes(role as string)) {
+    //     console.log("Final safety check failed → redirecting");
+    //     return null;
+    // }
 
-    const totalComments = Object.values(commentsMap).reduce(
-        (sum, cs) => sum + cs.length,
-        0
-    );
+    const totalComments = Object.values(commentsMap).flat().length;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-            {/* Header */}
             <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
-                            <p className="text-sm text-gray-600 mt-1">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs font-medium">
-                                    {role}
-                                </span>
-                            </p>
-                        </div>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
                         <button
-                            onClick={() => setSidebarOpen(true)}
-                            className="md:hidden p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                            onClick={() => setSidebarOpen(!sidebarOpen)}
+                            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
                         >
-                            <Menu size={24} />
+                            {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
                         </button>
+                        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                        Welcome back, <span className="font-semibold text-green-600">{user.username}</span> ({role})
                     </div>
                 </div>
             </header>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {error && (
-                    <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6 border border-red-200">
-                        {error}
-                    </div>
-                )}
+            <div className="flex">
+                <aside className={`fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    <nav className="p-4 space-y-2">
+                        <TabButton active={activeTab === "dashboard"} onClick={() => { setActiveTab("dashboard"); setSidebarOpen(false); }} icon={LayoutDashboard}>Dashboard</TabButton>
+                        <TabButton active={activeTab === "posts"} onClick={() => { setActiveTab("posts"); setSidebarOpen(false); }} icon={FileText}>Posts</TabButton>
+                        <TabButton active={activeTab === "comments"} onClick={() => { setActiveTab("comments"); setSidebarOpen(false); }} icon={MessageSquare}>Comments</TabButton>
+                        {role === "superadmin" && (
+                            <TabButton active={activeTab === "admins"} onClick={() => { setActiveTab("admins"); setSidebarOpen(false); }} icon={Users}>Admins</TabButton>
+                        )}
+                    </nav>
+                </aside>
 
-                {/* Desktop Navigation */}
-                <nav className="hidden md:flex gap-3 mb-8">
-                    <TabButton
-                        active={activeTab === "dashboard"}
-                        onClick={() => setActiveTab("dashboard")}
-                        icon={LayoutDashboard}
-                    >
-                        Dashboard
-                    </TabButton>
-                    <TabButton
-                        active={activeTab === "posts"}
-                        onClick={() => setActiveTab("posts")}
-                        icon={FileText}
-                    >
-                        Manage Posts
-                    </TabButton>
-                    <TabButton
-                        active={activeTab === "comments"}
-                        onClick={() => setActiveTab("comments")}
-                        icon={MessageSquare}
-                    >
-                        Manage Comments
-                    </TabButton>
-                    {role === "superadmin" && (
-                        <TabButton
-                            active={activeTab === "admins"}
-                            onClick={() => setActiveTab("admins")}
-                            icon={Users}
-                        >
-                            Manage Admins
-                        </TabButton>
-                    )}
-                </nav>
-
-                {/* Mobile Sidebar */}
-                {sidebarOpen && (
-                    <div className="fixed inset-0 z-50 md:hidden">
-                        <div
-                            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
-                            onClick={() => setSidebarOpen(false)}
-                        />
-                        <div className="relative w-64 h-full bg-white shadow-2xl flex flex-col p-6">
-                            <button
-                                onClick={() => setSidebarOpen(false)}
-                                className="self-end mb-8 p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-                            >
-                                <X size={24} />
-                            </button>
-                            <nav className="flex flex-col gap-2">
-                                <TabButton
-                                    active={activeTab === "dashboard"}
-                                    onClick={() => {
-                                        setActiveTab("dashboard");
-                                        setSidebarOpen(false);
-                                    }}
-                                    icon={LayoutDashboard}
-                                >
-                                    Dashboard
-                                </TabButton>
-                                <TabButton
-                                    active={activeTab === "posts"}
-                                    onClick={() => {
-                                        setActiveTab("posts");
-                                        setSidebarOpen(false);
-                                    }}
-                                    icon={FileText}
-                                >
-                                    Posts
-                                </TabButton>
-                                <TabButton
-                                    active={activeTab === "comments"}
-                                    onClick={() => {
-                                        setActiveTab("comments");
-                                        setSidebarOpen(false);
-                                    }}
-                                    icon={MessageSquare}
-                                >
-                                    Comments
-                                </TabButton>
-                                {role === "superadmin" && (
-                                    <TabButton
-                                        active={activeTab === "admins"}
-                                        onClick={() => {
-                                            setActiveTab("admins");
-                                            setSidebarOpen(false);
-                                        }}
-                                        icon={Users}
-                                    >
-                                        Admins
-                                    </TabButton>
-                                )}
-                            </nav>
-                        </div>
-                    </div>
-                )}
-
-                {/* === TAB CONTENT === */}
-                {activeTab === "dashboard" && (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <StatCard
-                                title="Total Posts"
-                                value={posts.length}
-                                color="blue"
-                                icon={FileText}
-                            />
-                            <StatCard
-                                title="Total Comments"
-                                value={totalComments}
-                                color="green"
-                                icon={MessageSquare}
-                            />
-                            {role === "superadmin" && (
-                                <StatCard
-                                    title="Total Admins"
-                                    value={admins.length}
-                                    color="purple"
-                                    icon={Users}
-                                />
-                            )}
-                        </div>
-
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                            <h2 className="text-xl font-semibold mb-4 text-gray-900">Recent Posts</h2>
-                            <div className="space-y-4">
-                                {posts.slice(0, 3).map((post) => (
-                                    <div
-                                        key={post._id}
-                                        className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                                    >
-                                        {post.image_url && (
-                                            <img
-                                                src={post.image_url}
-                                                alt={post.title}
-                                                className="w-16 h-16 rounded-lg object-cover"
-                                            />
-                                        )}
-                                        <div className="flex-1">
-                                            <h3 className="font-medium text-gray-900">{post.title}</h3>
-                                            <div
-                                                className="text-sm text-gray-600 mt-1"
-                                                dangerouslySetInnerHTML={{
-                                                    __html: post.description.slice(0, 100),
-                                                }}
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={() => startEditingPost(post)}
-                                            className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
-                                        >
-                                            <Pencil size={16} />
-                                        </button>
-                                    </div>
-                                ))}
-                                {posts.length === 0 && (
-                                    <p className="text-gray-500 text-center py-8">
-                                        No posts yet. Create your first post!
-                                    </p>
-                                )}
+                <main className="flex-1 p-6">
+                    {activeTab === "dashboard" && (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <StatCard title="Total Posts" value={posts.length} color="blue" icon={FileText} />
+                                <StatCard title="Total Comments" value={totalComments} color="green" icon={MessageSquare} />
+                                {role === "superadmin" && <StatCard title="Admins" value={admins.length} color="purple" icon={Users} />}
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {activeTab === "posts" && (
-                    <div className="space-y-6">
-                        <PostForm
-                            editingPost={editingPost}
-                            onSuccess={handlePostSuccess}
-                            onCancel={handleCancelEdit}
-                        />
-                        <PostList
-                            posts={posts}
-                            onEdit={startEditingPost}
-                            onDelete={handleDeletePost}
-                        />
-                    </div>
-                )}
+                    {activeTab === "posts" && (
+                        <div className="space-y-6">
+                            <PostForm editingPost={editingPost} onSuccess={() => { setEditingPost(null); loadPosts(); }} onCancel={() => setEditingPost(null)} />
+                            <PostList posts={posts} onEdit={startEditingPost} onDelete={handleDeletePost} />
+                        </div>
+                    )}
 
-                {activeTab === "comments" && (
-                    <CommentList
-                        commentsMap={commentsMap}
-                        posts={posts}
-                        onDelete={handleDeleteComment}
-                        loading={loading}
-                    />
-                )}
-
-                {activeTab === "admins" && role === "superadmin" && (
-                    <AdminList
-                        admins={admins}
-                        onRefresh={fetchAdmins}
-                        loading={loading}
-                    />
-                )}
+                    {activeTab === "comments" && <CommentList commentsMap={commentsMap} posts={posts} onDelete={() => {}} loading={loading} />}
+                    {activeTab === "admins" && role === "superadmin" && <AdminList admins={admins} onRefresh={fetchAdmins} loading={loading} />}
+                </main>
             </div>
         </div>
     );

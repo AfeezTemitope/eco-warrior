@@ -1,3 +1,4 @@
+// frontend/src/components/AuthModal.tsx
 import React, { useState, useEffect } from 'react';
 import { X, Eye, EyeOff, Mail, Lock, User, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
@@ -19,7 +20,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, redirectPath }) 
     const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [successMessage, setSuccessMessage] = useState('');
-    const { session, signIn, signUp, signOut, error: authError } = useAuthStore();
+    const { user, signIn, signUp, signOut, error: authError } = useAuthStore();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -60,8 +61,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, redirectPath }) 
 
         setLoading(true);
         try {
-            const user = await signIn(email.trim(), password);
-            if (!user) throw new Error('Login failed');
+            const result = await signIn(email.trim(), password);
+            if (!result) throw new Error('Login failed');
 
             setSuccessMessage('Signed in successfully! 🎉');
             setTimeout(() => {
@@ -82,8 +83,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, redirectPath }) 
 
         setLoading(true);
         try {
-            const user = await signUp(email.trim(), password, name.trim());
-            if (!user) throw new Error('Signup failed');
+            const result = await signUp(email.trim(), password, name.trim());
+            if (!result) throw new Error('Signup failed');
 
             setSuccessMessage('Account created successfully! 🎉');
             setTimeout(() => {
@@ -136,13 +137,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, redirectPath }) 
                             <X size={20} className="text-gray-400 hover:text-gray-600" />
                         </button>
 
-                        {session ? (
+                        {user ? (
                             <div className="text-center py-4">
                                 <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                                     <User size={32} className="text-white" />
                                 </div>
                                 <h2 className="text-xl font-bold text-gray-900 mb-2">
-                                    Welcome, {session.user.user_metadata?.username || session.user.email}!
+                                    Welcome, {user.username || user.email}!
                                 </h2>
                                 <p className="text-gray-600 mb-6">You're already signed in.</p>
                                 <button

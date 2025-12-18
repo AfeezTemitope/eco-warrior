@@ -1,40 +1,33 @@
-// ProtectedRoute.tsx
-import {type ReactNode, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "./supabaseClient";
-import AdminLogin from "../components/AdminLogin.tsx";
+// frontend/src/lib/ProtectedRoute.tsx
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
+import { Loader2 } from 'lucide-react';
 
-interface ProtectedRouteProps {
-    children: ReactNode;
-}
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+    const { user, initialized, loading } = useAuthStore();
+    const location = useLocation();
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-    const [loading, setLoading] = useState(true);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const navigate = useNavigate();
-
-    useEffect(() => {
-        const checkSession = async () => {
-            const { data } = await supabase.auth.getSession();
-            if (data.session) {
-                setIsAuthenticated(true);
-            } else {
-                setIsAuthenticated(false);
-                navigate("/admin-login"); // redirect to login if no session
-            }
-            setLoading(false);
-        };
-
-        checkSession();
-    }, [navigate]);
-
-    if (loading) {
+    // Still initializing auth state → show a clean spinner
+    if (!initialized || loading) {
         return (
-            <div className="flex items-center justify-center h-screen text-lg">
-                Loading...
+            <div className="min-h-screen flex items-center justify-center bg-gray-900">
+                <Loader2 className="w-12 h-12 text-green-500 animate-spin" />
             </div>
         );
     }
 
-    return <>{isAuthenticated ? children : <AdminLogin />}</>;
-}
+    // Not logged in → go to admin login
+    if (!user) {
+        return <Navigate to="/admin-login" state={{ from: location }} replace />;
+    }
+
+    // Logged in but not admin/superadmin → kick to home
+    if (!['admin', 'superadmin'].includes(user.role)) {
+        return <Navigate to="/" replace />;
+    }
+
+    // All good → show admin panel
+    return <>{children}</>;
+};
+
+export default ProtectedRoute;

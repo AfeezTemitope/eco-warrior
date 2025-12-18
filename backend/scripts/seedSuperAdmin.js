@@ -1,51 +1,94 @@
-import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose';
+import User from '../models/User.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-
 export default async function seedSuperAdmin() {
     try {
-        // 1. Check if superadmin already exists
-        const { data: existingAdmins, error: fetchError } = await supabase
-            .from('profiles')
-            .select('id, username')
-            .eq('role', 'superadmin');
+        if (mongoose.connection.readyState === 0) {
+            await mongoose.connect(process.env.MONGODB_URI);
+        }
 
-        if (fetchError) throw fetchError;
+        const email = process.env.SUPERADMIN_EMAIL;
+        const password = process.env.SUPERADMIN_PASSWORD;
+        const username = "eco Warrior 🤝";
 
-        if (existingAdmins && existingAdmins.length > 0) {
-            // If superadmin exists, update username
-            const superAdminId = existingAdmins[0].id;
-            const { error: updateError } = await supabase
-                .from('profiles')
-                .update({ username: "eco Warrior 🍀" })
-                .eq('id', superAdminId);
+        const FIXED_UUID = '69392f010da3d1d4e8899b8f';
 
-            if (updateError) throw updateError;
+        if (!email || !password) {
+            throw new Error('SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD must be set in .env');
+        }
 
-            console.log("✅ Superadmin already exists. Username updated to eco Warrior 🍀.");
+        // Try to find existing user by email
+        const existingAdmin = await User.findOne({ email });
+
+        if (existingAdmin) {
+            console.log('✅ Superadmin already exists');
+            console.log('   ID:', existingAdmin._id);
+            console.log('   Email:', existingAdmin.email);
+            console.log('   Role:', existingAdmin.role);
+
+            // Update password using findOneAndUpdate instead of .save()
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+            await User.findOneAndUpdate(
+                { email },
+                {
+                    $set: {
+                        password: hashedPassword,
+                        username: username,
+                        role: 'superadmin'
+                    }
+                },
+                { new: true }
+            );
+
+            console.log('✅ Superadmin credentials updated');
             return;
         }
 
-        // 2. Create auth user
-        const email = process.env.SUPERADMIN_EMAIL;
-        const password = process.env.SUPERADMIN_PASSWORD;
-        const username = "eco Warrior 🍀";
+        // Only create if user doesn't exist at all
+        console.log('📝 Creating new superadmin...');
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
+        const superAdmin = new User({
+            _id: FIXED_UUID,
+            email,
+            password: hashedPassword,
+            username,
+            role: 'superadmin'
+        });
 
-        // 3. Insert into profiles with role = superadmin
-        const { error: insertError } = await supabase
-            .from("profiles")
-            .insert({ id: data.user.id, username, role: "superadmin" });
+        await superAdmin.save();
 
-        if (insertError) throw insertError;
-
-        console.log("🎉 Superadmin created successfully with username eco Warrior 🍀!");
+        console.log('🎉 Superadmin created successfully!');
+        console.log('   Email:', email);
+        console.log('   Username:', username);
+        console.log('   UUID:', FIXED_UUID);
     } catch (err) {
-        console.error("❌ Superadmin seeding failed:", err.message);
+        // If user already exists, that's fine - just log and continue
+        if (err.code === 11000) {
+            console.log('ℹ️  Superadmin already exists in database (duplicate key)');
+            return;
+        }
+
+        console.error('❌ Superadmin seeding failed:', err.message);
+
+        // Don't crash the server in production
+        if (process.env.NODE_ENV === 'production') {
+            console.error('   Server will continue');
+        }
     }
+}
+
+// Run if executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+    seedSuperAdmin()
+        .then(() => process.exit(0))
+        .catch(err => {
+            console.error(err);
+            process.exit(1);
+        });
 }

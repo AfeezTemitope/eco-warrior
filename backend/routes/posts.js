@@ -1,15 +1,14 @@
-// ============================================
-// backend/routes/posts.js - COMPLETE FIX
-// ============================================
+// backend/routes/posts.js
 import express from 'express';
 import Post from '../models/Post.js';
+import User from '../models/User.js';
 import authMiddleware from '../middleware/auth.js';
 import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import { v2 as cloudinary } from 'cloudinary';
-import { createClient } from '@supabase/supabase-js';
+import dotenv from "dotenv";
+dotenv.config();
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -51,29 +50,26 @@ router.get('/', async (req, res) => {
             .limit(limit)
             .lean();
 
-        // Fetch author profiles from Supabase
+        // Fetch author profiles from User collection
         const authorIds = [...new Set(posts.map(p => p.author_id))];
 
         let profileMap = new Map();
         if (authorIds.length > 0) {
-            const { data: profiles, error } = await supabase
-                .from('profiles')
-                .select('id, username')
-                .in('id', authorIds);
+            const profiles = await User.find({
+                _id: { $in: authorIds }
+            }).select('_id username').lean();
 
-            if (!error && profiles) {
-                profileMap = new Map(profiles.map(p => [p.id, p]));
-            }
+            profileMap = new Map(profiles.map(p => [p._id.toString(), p]));
         }
 
         // Attach profile data to posts
         const postsWithProfiles = posts.map(post => ({
             ...post,
             _id: post._id.toString(),
-            profiles: profileMap.get(post.author_id) || { username: 'eco warrior 🤝' }
+            author_id: post.author_id.toString(),
+            profiles: profileMap.get(post.author_id.toString()) || { username: 'eco warrior 🤝' }
         }));
 
-        // ALWAYS return an array
         res.json(postsWithProfiles);
     } catch (err) {
         console.error('Error fetching posts:', err);
@@ -96,15 +92,12 @@ router.get('/:id', async (req, res) => {
         }
 
         // Fetch author profile
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, username')
-            .eq('id', post.author_id)
-            .single();
+        const profile = await User.findById(post.author_id).select('_id username').lean();
 
         const postWithProfile = {
             ...post,
             _id: post._id.toString(),
+            author_id: post.author_id.toString(),
             profiles: profile || { username: 'eco warrior 🤝' }
         };
 
@@ -140,15 +133,12 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
 
         await post.save();
 
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, username')
-            .eq('id', post.author_id)
-            .single();
+        const profile = await User.findById(post.author_id).select('_id username').lean();
 
         const postWithProfile = {
             ...post.toObject(),
             _id: post._id.toString(),
+            author_id: post.author_id.toString(),
             profiles: profile || { username: 'eco warrior 🤝' }
         };
 
@@ -174,41 +164,60 @@ router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
             return res.status(404).json({ error: 'Post not found' });
         }
 
-        if (post.author_id !== req.user.userId && !['admin', 'superadmin'].includes(req.user.role)) {
+        console.log('🔍 Post edit check:', {
+            postAuthorId: post.author_id,
+            currentUserId: req.user.userId,
+            userRole: req.user.role,
+            receivedFields: { title: !!title, description: !!description, content: !!content, image: !!req.file }
+        });
+
+        // Check if user is author OR admin/superadmin
+        const isAuthor = post.author_id === req.user.userId || post.author_id.toString() === req.user.userId;
+        const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+
+        if (!isAuthor && !isAdmin) {
+            console.log('❌ Unauthorized edit attempt');
             return res.status(403).json({ error: 'Unauthorized to update this post' });
         }
 
-        if (title) post.title = title.trim();
-        if (description) post.description = description.trim();
-        if (content) post.content = content.trim();
+        console.log('✅ Edit authorized');
 
+        // Only update fields that are provided (partial updates)
+        if (title !== undefined && title !== null) {
+            post.title = title.trim();
+        }
+        if (description !== undefined && description !== null) {
+            post.description = description.trim();
+        }
+        if (content !== undefined && content !== null) {
+            post.content = content.trim();
+        }
+
+        // Handle image updates
         if (req.file) {
             post.image_url = req.file.path;
-        } else if (image_url) {
+        } else if (image_url !== undefined) {
             post.image_url = image_url;
         }
 
         await post.save();
 
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, username')
-            .eq('id', post.author_id)
-            .single();
+        const profile = await User.findOne({ _id: post.author_id }).select('_id username').lean();
 
         const postWithProfile = {
             ...post.toObject(),
             _id: post._id.toString(),
+            author_id: post.author_id.toString(),
             profiles: profile || { username: 'eco warrior 🤝' }
         };
 
+        console.log('✅ Post updated successfully');
         res.json(postWithProfile);
     } catch (err) {
         console.error('Error updating post:', err);
         res.status(500).json({ error: 'Failed to update post' });
     }
 });
-
 // DELETE post
 router.delete('/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
@@ -223,9 +232,22 @@ router.delete('/:id', authMiddleware, async (req, res) => {
             return res.status(404).json({ error: 'Post not found' });
         }
 
-        if (post.author_id !== req.user.userId && !['admin', 'superadmin'].includes(req.user.role)) {
+        console.log('🔍 Post delete check:', {
+            postAuthorId: post.author_id,
+            currentUserId: req.user.userId,
+            userRole: req.user.role
+        });
+
+        // Check if user is author OR admin/superadmin
+        const isAuthor = post.author_id === req.user.userId || post.author_id.toString() === req.user.userId;
+        const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+
+        if (!isAuthor && !isAdmin) {
+            console.log('❌ Unauthorized delete attempt');
             return res.status(403).json({ error: 'Unauthorized to delete this post' });
         }
+
+        console.log('✅ Delete authorized');
 
         await post.deleteOne();
         res.json({ message: 'Post deleted successfully' });

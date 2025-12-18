@@ -1,28 +1,47 @@
-import  { createClient } from '@supabase/supabase-js'
-import dotenv from 'dotenv';
-dotenv.config();
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
-const authMiddleware =  async (req, res, next) => {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    if (!token) return res.status(401).json({error: 'No token provided'});
+const authMiddleware = async (req, res, next) => {
+    const authHeader = req.header('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
+
+    if (!token) {
+        return res.status(401).json({ error: 'No token provided' });
+    }
 
     try {
-        const {data: {user}, error} = await supabase.auth.getUser(token);
-        if (error || !user) return res.status(401).json({error: 'Invalid token'});
+        if (!process.env.JWT_SECRET) {
+            throw new Error('JWT_SECRET not configured');
+        }
 
-        const {data} = await supabase
-            .from('profiles')
-            .select('id, username, role')
-            .eq('id', user.id)
-            .single();
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        if (!data) return res.status(403).json({error: 'Profile not found'});
+        // Find by email (more reliable with String _id)
+        const user = await User.findOne({ email: decoded.email }).select('-password');
 
-        req.user = {userId: data.id, username: data.username, role: data.role};
+        if (!user) {
+            console.log('❌ User not found:', decoded.email);
+            return res.status(401).json({
+                error: 'User not found',
+                clearToken: true
+            });
+        }
+
+        req.user = {
+            userId: user._id.toString(),
+            email: user.email,
+            username: user.username,
+            role: user.role
+        };
+
         next();
     } catch (err) {
-        res.status(401).json({error: 'Authentication failed'});
+        console.error('❌ Auth middleware error:', err.message);
+
+        if (err.name === 'TokenExpiredError') {
+            return res.status(401).json({ error: 'Token expired' });
+        }
+        res.status(401).json({ error: 'Invalid token' });
     }
 };
 

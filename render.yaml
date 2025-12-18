@@ -35,11 +35,9 @@ services:
         value: production
       - key: PORT
         sync: false
-      - key: MONGO_URI
+      - key: MONGODB_URI
         sync: false
-      - key: SUPABASE_KEY
-        sync: false
-      - key: SUPABASE_URL
+      - key: JWT_SECRET
         sync: false
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
@@ -51,5 +49,5 @@ services:
         sync: false
       - key: SUPERADMIN_PASSWORD
         sync: false
-    healthCheckPath: /health
+    healthCheckPath: /api/health
     autoDeploy: true
