@@ -2,6 +2,9 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import postsRoutes from './routes/posts.js';
@@ -14,7 +17,6 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
 
 // Middleware
 app.use(cors());
@@ -45,7 +47,30 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Server is running' });
 });
 
-// Error handling middleware
+// ==================== PRODUCTION: Serve Frontend Build ====================
+if (process.env.NODE_ENV === 'production') {
+    // ESM equivalent of __dirname
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+
+    const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
+
+    // Serve static assets (JS, CSS, images, etc.)
+    app.use(express.static(frontendDist));
+
+    // Catch-all route: serve index.html for client-side routing
+    // (React Router handles the path on the frontend)
+    app.get('*', (req, res) => {
+        // Don't override API routes
+        if (req.originalUrl.startsWith('/api')) {
+            return res.status(404).json({ error: 'API endpoint not found' });
+        }
+        res.sendFile(path.join(frontendDist, 'index.html'));
+    });
+}
+// ========================================================================
+
+// Error handling middleware (must be last)
 app.use((err, req, res, next) => {
     console.error('Server error:', err);
     res.status(500).json({ error: 'Internal server error' });

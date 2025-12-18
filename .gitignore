@@ -2,6 +2,8 @@
 node_modules
 backend/.env
 .vs
+.env
+
 
 node_modules/
 .idea/
