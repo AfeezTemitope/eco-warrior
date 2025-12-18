@@ -1,4 +1,3 @@
-// frontend/src/store/authStore.ts
 import { create } from 'zustand';
 import api from '../lib/api';
 

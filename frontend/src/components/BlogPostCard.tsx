@@ -27,7 +27,7 @@ function BlogPostCard({ post }: BlogPostCardProps) {
     const [copySuccess, setCopySuccess] = useState(false);
     const [error, setError] = useState('');
     const [interactionLoading, setInteractionLoading] = useState(true);
-    const { requireAuth, session } = useAuthStore();
+    const { user } = useAuthStore();
     const { getInteractions, addClap, removeClap, loadInteractions } = usePostStore();
 
     useEffect(() => {
@@ -35,7 +35,7 @@ function BlogPostCard({ post }: BlogPostCardProps) {
             setInteractionLoading(true);
             loadInteractions(post._id).finally(() => setInteractionLoading(false));
         }
-    }, [post._id, session, loadInteractions]);
+    }, [post._id, user, loadInteractions]);
 
     const interactions = getInteractions(post._id);
     const postUrl = `${window.location.origin}/posts/${post._id}`;
@@ -44,7 +44,8 @@ function BlogPostCard({ post }: BlogPostCardProps) {
         e.preventDefault();
         e.stopPropagation();
 
-        if (!requireAuth()) {
+        // Fixed: check user instead of user
+        if (!user) {
             setShowAuthModal(true);
             return;
         }

@@ -11,7 +11,7 @@ import Footer from "./Footer.tsx";
 
 export default function PostDetail() {
     const { id } = useParams<{ id: string }>();
-    const { session, error: authError } = useAuthStore();
+    const { user, error: authError } = useAuthStore();
     const { getInteractions, addClap, removeClap, loadInteractions, addComment, refreshInteractions } = usePostStore();
     const [post, setPost] = useState<Post | null>(null);
     const [loading, setLoading] = useState(true);
@@ -36,7 +36,7 @@ export default function PostDetail() {
             setInteractionLoading(true);
             refreshInteractions(id).finally(() => setInteractionLoading(false));
         }
-    }, [session, id, refreshInteractions]);
+    }, [user, id, refreshInteractions]);
 
     const fetchPost = useCallback(async () => {
         if (!id) {
@@ -81,7 +81,7 @@ export default function PostDetail() {
 
     const handleClap = async (e: React.MouseEvent) => {
         e.preventDefault();
-        if (!session) {
+        if (!user) {
             setShowAuthModal(true);
             return;
         }
@@ -100,7 +100,7 @@ export default function PostDetail() {
 
     const handleAddComment = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!session) {
+        if (!user) {
             setShowAuthModal(true);
             return;
         }
@@ -121,7 +121,7 @@ export default function PostDetail() {
         try {
             await addComment(id, {
                 post_id: id,
-                author_id: session.user.id,
+                author_id: user.id,
                 text: newComment.trim(),
             });
             setNewComment('');
@@ -355,7 +355,7 @@ export default function PostDetail() {
                                         <p className="text-red-700 font-medium">{commentError}</p>
                                     </div>
                                 )}
-                                {!session ? (
+                                {!user ? (
                                     <div className="text-center py-10 bg-gradient-to-br from-green-50 to-blue-50 rounded-xl border-2 border-gray-200">
                                         <MessageCircle className="w-12 h-12 text-[#2E7D32] mx-auto mb-4" />
                                         <p className="text-gray-700 text-lg mb-4">Join the conversation!</p>
