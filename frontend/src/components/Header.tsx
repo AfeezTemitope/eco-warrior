@@ -1,13 +1,22 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { FaUser } from "react-icons/fa";
+import { FaUser, FaSignOutAlt } from "react-icons/fa";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { motion } from "framer-motion";
 import AuthModal from "./AuthModal";
+import { useAuthStore } from "../store/authStore";
 
 const Header = () => {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    // Get auth state from store
+    const { user, signOut } = useAuthStore();
+
+    const handleSignOut = () => {
+        signOut();
+        setIsMenuOpen(false); // Close mobile menu if open
+    };
 
     return (
         <>
@@ -44,13 +53,33 @@ const Header = () => {
                             >
                                 Contact
                             </a>
-                            <button
-                                onClick={() => setShowAuthModal(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-[#2E7D32] text-white rounded-lg hover:bg-green-700 transition-colors"
-                            >
-                                <FaUser className="w-4 h-4" />
-                                <span className="font-medium">Sign In</span>
-                            </button>
+
+                            {/* Auth Button - Changes based on login status */}
+                            {user ? (
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2 text-gray-700">
+                                        <FaUser className="w-5 h-5 text-[#2E7D32]" />
+                                        <span className="font-medium hidden lg:inline">
+                                            {user.username}
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={handleSignOut}
+                                        className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
+                                    >
+                                        <FaSignOutAlt className="w-4 h-4" />
+                                        <span className="hidden sm:inline">Sign Out</span>
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setShowAuthModal(true)}
+                                    className="flex items-center gap-2 px-6 py-2 bg-[#2E7D32] text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-md"
+                                >
+                                    <FaUser className="w-4 h-4" />
+                                    <span>Sign In</span>
+                                </button>
+                            )}
                         </nav>
 
                         {/* Mobile Menu Button */}
@@ -59,9 +88,9 @@ const Header = () => {
                             className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
                         >
                             {isMenuOpen ? (
-                                <XMarkIcon className="w-6 h-6 text-gray-700" />
+                                <XMarkIcon className="w-6 h-6" />
                             ) : (
-                                <Bars3Icon className="w-6 h-6 text-gray-700" />
+                                <Bars3Icon className="w-6 h-6" />
                             )}
                         </button>
                     </div>
@@ -103,16 +132,39 @@ const Header = () => {
                                 >
                                     Contact
                                 </a>
-                                <button
-                                    onClick={() => {
-                                        setShowAuthModal(true);
-                                        setIsMenuOpen(false);
-                                    }}
-                                    className="w-full flex items-center gap-2 px-4 py-3 bg-[#2E7D32] text-white rounded-lg hover:bg-green-700 transition-colors"
-                                >
-                                    <FaUser className="w-4 h-4" />
-                                    <span>Sign In</span>
-                                </button>
+
+                                {/* Mobile Auth Section */}
+                                {user ? (
+                                    <>
+                                        <div className="px-4 py-3 border-b border-gray-200">
+                                            <div className="flex items-center gap-3">
+                                                <FaUser className="w-8 h-8 text-[#2E7D32]" />
+                                                <div>
+                                                    <p className="font-semibold text-gray-800">{user.username}</p>
+                                                    <p className="text-sm text-gray-500">{user.email}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={handleSignOut}
+                                            className="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
+                                        >
+                                            <FaSignOutAlt className="inline w-4 h-4 mr-2" />
+                                            Sign Out
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={() => {
+                                            setShowAuthModal(true);
+                                            setIsMenuOpen(false);
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#2E7D32] text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                                    >
+                                        <FaUser className="w-4 h-4" />
+                                        <span>Sign In</span>
+                                    </button>
+                                )}
                             </nav>
                         </div>
                     </motion.div>
